@@ -42,6 +42,17 @@ int g_VERBOSE = 0;
 
 std::wstring Account_UID_Field_Name = L"AccountUID";
 
+// ini FILE
+const int numConnStKeys = 5;
+const WCHAR* iniFileName = L".\\JsonUserDB.ini";
+const WCHAR* iniDSNKeyName = L"DSN";
+const WCHAR* iniDatabaseKeyName = L"Database";
+const WCHAR* iniTrusted_ConnectionKeyName = L"trusted_connection";
+const WCHAR* iniUIDKeyName = L"UID";
+const WCHAR* iniPWDKeyName = L"PWD";
+const WCHAR* defualtValue = L"";
+
+
 // For SQL Execute
 RETCODE sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
 
@@ -85,7 +96,8 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	const WCHAR* accountuid = NULL;
 	const WCHAR* source = NULL;
 	const WCHAR* target = NULL;
-	const WCHAR* connectionstring = NULL;
+	const WCHAR* connsection = NULL;
+	const WCHAR* connstring = NULL;
 	setlocale(LC_ALL, "en-US.UTF-8");
 	// Set IgnoreTableNameList
 	tableNameList_except.push_back(L"AccountWhisper");
@@ -97,6 +109,8 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	int deleterows = 0;
 	int printtables = 0;
 	int verbose = 0;
+	
+	// Argparse
 	struct argparse_option options[] = {
 		OPT_HELP(),
 		OPT_GROUP(L"Basic options"),
@@ -106,6 +120,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		OPT_BOOLEAN(L'p', L"print", &printtables, L"Print all columns From Tables Where Same AccountUID Exists ", NULL, 0, 0),
 		OPT_STRING(L's', L"source", &source, L"Source DB connectionstring or Source jsonfile name", NULL, 0, 0),
 		OPT_STRING(L't', L"target", &target, L"Target jsonfile name or Target DB connectionstring", NULL, 0, 0),
+		OPT_STRING(L'c', L"connect", &connsection, L"Section Name in ini File for Connecttion to DB", NULL, 0, 0),
 		OPT_STRING(L'u', L"uid", &accountuid, L"Target AccountUID", NULL, 0, 0),
 		OPT_BOOLEAN(L'v', L"verbosse", &verbose, L"Provides additional details", NULL, 0, 0),
 		OPT_END(),
@@ -113,43 +128,72 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 
 	struct argparse argparse;
 	argparse_init(&argparse, options, usages, 0);
-	argparse_describe(&argparse, L"\nThis program supports Export and Import JSON FILE From or To DB.", L"\nex) -e -u 100000000 -s connecttionstring -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -t connecttionstring\nex) -d -u 100000000 -t connecttionstring\nex) -p -u 100000000 -t connecttionstring");
-	argc = argparse_parse(&argparse, argc, argv);
-	if (argc < 1) {
+	argparse_describe(&argparse, L"\nThis program supports Export and Import JSON FILE From or To DB.", L"\nex) -e -u 100000000 -s connecttionstring -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -t connecttionstring\nex) -d -u 100000000 -t connecttionstring\nex) -p -u 100000000 -t connecttionstring\nex) -e -u 100000000 -c connectsection -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -c connectsection\nex) -d -u 100000000 -c connectsection\nex) -p -u 100000000 -c connectsection");
+	argparse_parse(&argparse, argc, argv);
+	if (argc < 2) {
 		argparse_usage(&argparse);
 		return SUCCESS;
 	}
-
-	if (accountuid == NULL || target == NULL) {
+	if (accountuid == NULL) {
 		fwprintf(stderr, L"\nArgument Not correct");
 		return ERROR_BAD_ARG;
 	}
 	if (verbose != 0) {
 		g_VERBOSE = verbose;
 	}
-	if (deleterows == 0 && printtables == 0) {
-		if (source == NULL) {
+	if (exportjson == 1) {
+		if (target == NULL || ((source == NULL) == (connsection == NULL))) {
 			fwprintf(stderr, L"\nArgument Not correct");
 			return ERROR_BAD_ARG;
 		}
 	}
-
-	// Make Wstring(Ignore Table Name List) For Where
-	condition_excepttablenames = conditionExceptTableNames(tableNameList_except);
-
-	if (exportjson + importjson + deleterows + printtables != 1) { // Mode Choice
+	if (importjson == 1) {
+		if (source == NULL || ((target == NULL) == (connsection == NULL))) {
+			fwprintf(stderr, L"\nArgument Not correct");
+			return ERROR_BAD_ARG;
+		}
+	}
+	
+	// Mode Choice
+	if (exportjson + importjson + deleterows + printtables != 1) {
 		fwprintf(stderr, L"\nThis Mode Not Supported");
 		return ERROR_BAD_ARG;
 	}
 
-	// Connect DB
-	if (exportjson == 1) {
-		connectionstring = source;
+	// Using Connectionstring OR ConnectSection
+	if (connsection == NULL){
+		if (exportjson == 1) {
+			connstring = source;
+		}
+		else {
+			connstring = target;
+		}
 	}
 	else {
-		connectionstring = target;
+		const int wcsbufsize = 1000;
+		WCHAR wcsbuffer[wcsbufsize];
+		const int keysbufsize = 512;
+		WCHAR keyDSNbuf[keysbufsize];
+		WCHAR keyDatabasebuf[keysbufsize];
+		WCHAR keyiniTrusted_ConnectionKeyNamebuf[keysbufsize];
+		WCHAR keyUIDbuf[keysbufsize];
+		WCHAR keyPWDbuf[keysbufsize];
+		const WCHAR* iniConnStrSection = connsection;
+		GetPrivateProfileString(iniConnStrSection, iniDSNKeyName, defualtValue, keyDSNbuf, keysbufsize, iniFileName);
+		GetPrivateProfileString(iniConnStrSection, iniDatabaseKeyName, defualtValue, keyDatabasebuf, keysbufsize, iniFileName);
+		GetPrivateProfileString(iniConnStrSection, iniTrusted_ConnectionKeyName, defualtValue, keyiniTrusted_ConnectionKeyNamebuf, keysbufsize, iniFileName);
+		GetPrivateProfileString(iniConnStrSection, iniUIDKeyName, defualtValue, keyUIDbuf, keysbufsize, iniFileName);
+		GetPrivateProfileString(iniConnStrSection, iniPWDKeyName, defualtValue, keyPWDbuf, keysbufsize, iniFileName);
+		swprintf_s(wcsbuffer, wcsbufsize, L"DSN=%s;Database=%s;trusted_connection=%s;UID=%s;PWD=%s;", keyDSNbuf, keyDatabasebuf, keyiniTrusted_ConnectionKeyNamebuf, keyUIDbuf, keyPWDbuf);
+		connstring = wcsbuffer;
 	}
-	if (!SQL_SUCCEEDED(connectToDB(hEnv, hDbc, connectionstring))) {
+
+
+	// Make Wstring(Ignore Table Name List) For Where
+	condition_excepttablenames = conditionExceptTableNames(tableNameList_except);
+
+	// Connect DB
+	if (!SQL_SUCCEEDED(connectToDB(hEnv, hDbc, connstring))) {
 		fwprintf(stderr, L"\nFail : Disconnect DB");
 		return ERROR_CONNECT_DB;
 	}
