@@ -29,10 +29,12 @@ const int ERROR_IMPORT_JSON = 7;
 const int ERROR_DELETE_TABLESROWS = 8;
 const int ERROR_PRINT_TABLES = 9;
 
+#define APP_NAME "JsonUserDB"
+
 // Usages Of Argparse
 static const WCHAR* const usages[] = {
-	L"basic [options] [[--] args]",
-	L"basic [options]",
+	L"" APP_NAME " [options] [[--] args]",
+	L"" APP_NAME " [options]",
 	NULL,
 };
 
@@ -112,8 +114,12 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	struct argparse argparse;
 	argparse_init(&argparse, options, usages, 0);
 	argparse_describe(&argparse, L"\nThis program supports Export and Import JSON FILE From or To DB.", L"\nex) -e -u 100000000 -s connecttionstring -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -t connecttionstring\nex) -d -u 100000000 -t connecttionstring\nex) -p -u 100000000 -t connecttionstring");
-
 	argc = argparse_parse(&argparse, argc, argv);
+	if (argc < 1) {
+		argparse_usage(&argparse);
+		return SUCCESS;
+	}
+
 	if (accountuid == NULL || target == NULL) {
 		fwprintf(stderr, L"\nArgument Not correct");
 		return ERROR_BAD_ARG;
