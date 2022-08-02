@@ -35,5 +35,11 @@
 
 # Etc
 x64/
+<<<<<<< HEAD
 .vs/
 *.user
+=======
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+>>>>>>> 315bd8db178db0a9fb4952532dd8550af498fd09
