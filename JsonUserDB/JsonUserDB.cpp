@@ -17,6 +17,7 @@
 #include "sqlutility.h"
 #include "argparse.h"
 #include "json/json.h"
+
 // return codes
 const int SUCCESS = 0;
 const int ERROR_BAD_ARG = 1;
@@ -28,6 +29,7 @@ const int ERROR_DISCONNECT_DB = 6;
 const int ERROR_IMPORT_JSON = 7;
 const int ERROR_DELETE_TABLESROWS = 8;
 const int ERROR_PRINT_TABLES = 9;
+int RETURNVAL = SUCCESS;
 
 #define APP_NAME "JsonUserDB"
 
@@ -36,33 +38,28 @@ static const WCHAR* const usages[] = {
 	L"" APP_NAME " [options] [[--] args]",
 	L"" APP_NAME " [options]",
 	NULL,
-};
+};						
 
-int g_VERBOSE = 0;
+#define VALIDATION_CHECK(x, y, z) 		\
+						if (!x) {\
+						fwprintf(stderr, y);\
+						RETURNVAL = z;\
+						goto Exit;\
+						}
+
+#define SQL_SUCCESS_CHECK(x, y, z) 		\
+						if (!SQL_SUCCEEDED(x)) {\
+						fwprintf(stderr, y);\
+						RETURNVAL = z;\
+						goto Exit;\
+						}
 
 std::wstring Account_UID_Field_Name = L"AccountUID";
 
 // ini FILE
-const int numConnStKeys = 5;
+const WCHAR* defualtEmptyVal = L"";
+const WCHAR* defualtTrusted_ConnectionVal = L"No";
 const WCHAR* iniFileName = L".\\JsonUserDB.ini";
-const WCHAR* iniDSNKeyName = L"DSN";
-const WCHAR* iniDatabaseKeyName = L"Database";
-const WCHAR* iniTrusted_ConnectionKeyName = L"trusted_connection";
-const WCHAR* iniUIDKeyName = L"UID";
-const WCHAR* iniPWDKeyName = L"PWD";
-const WCHAR* defualtValue = L"";
-
-
-// For SQL Execute
-RETCODE sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
-
-// Return Result Of Query
-std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
-Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
-
-// Connect And Diconnect DB
-RETCODE connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr);
-RETCODE disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt);
 
 // Modify DB tables
 RETCODE deleteTablesRows(std::vector<std::wstring> tableNameList, std::wstring accountUID, SQLHDBC hDbc);
@@ -172,258 +169,63 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	else {
 		const int wcsbufsize = 1000;
 		WCHAR wcsbuffer[wcsbufsize];
-		const int keysbufsize = 512;
-		WCHAR keyDSNbuf[keysbufsize];
-		WCHAR keyDatabasebuf[keysbufsize];
-		WCHAR keyiniTrusted_ConnectionKeyNamebuf[keysbufsize];
-		WCHAR keyUIDbuf[keysbufsize];
-		WCHAR keyPWDbuf[keysbufsize];
-		const WCHAR* iniConnStrSection = connsection;
-		GetPrivateProfileString(iniConnStrSection, iniDSNKeyName, defualtValue, keyDSNbuf, keysbufsize, iniFileName);
-		GetPrivateProfileString(iniConnStrSection, iniDatabaseKeyName, defualtValue, keyDatabasebuf, keysbufsize, iniFileName);
-		GetPrivateProfileString(iniConnStrSection, iniTrusted_ConnectionKeyName, defualtValue, keyiniTrusted_ConnectionKeyNamebuf, keysbufsize, iniFileName);
-		GetPrivateProfileString(iniConnStrSection, iniUIDKeyName, defualtValue, keyUIDbuf, keysbufsize, iniFileName);
-		GetPrivateProfileString(iniConnStrSection, iniPWDKeyName, defualtValue, keyPWDbuf, keysbufsize, iniFileName);
-		swprintf_s(wcsbuffer, wcsbufsize, L"DSN=%s;Database=%s;trusted_connection=%s;UID=%s;PWD=%s;", keyDSNbuf, keyDatabasebuf, keyiniTrusted_ConnectionKeyNamebuf, keyUIDbuf, keyPWDbuf);
+		const int valbufsize = 512;
+		WCHAR valDSNbuf[valbufsize];
+		WCHAR valDatabasebuf[valbufsize];
+		WCHAR valTrusted_Connectionbuf[valbufsize];
+		WCHAR valUIDbuf[valbufsize];
+		WCHAR valPWDbuf[valbufsize];
+		GetPrivateProfileString(connsection, L"DSN", defualtEmptyVal, valDSNbuf, valbufsize, iniFileName);
+		GetPrivateProfileString(connsection, L"trusted_connection", defualtTrusted_ConnectionVal, valTrusted_Connectionbuf, valbufsize, iniFileName);
+		GetPrivateProfileString(connsection, L"UID", defualtEmptyVal, valUIDbuf, valbufsize, iniFileName);
+		GetPrivateProfileString(connsection, L"PWD", defualtEmptyVal, valPWDbuf, valbufsize, iniFileName);
+		GetPrivateProfileString(connsection, L"Database", defualtEmptyVal, valDatabasebuf, valbufsize, iniFileName);
+		swprintf_s(wcsbuffer, wcsbufsize, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", valDSNbuf, valTrusted_Connectionbuf, valUIDbuf, valPWDbuf, valDatabasebuf);
 		connstring = wcsbuffer;
 	}
-
 
 	// Make Wstring(Ignore Table Name List) For Where
 	condition_excepttablenames = conditionExceptTableNames(tableNameList_except);
 
 	// Connect DB
-	if (!SQL_SUCCEEDED(connectToDB(hEnv, hDbc, connstring))) {
-		fwprintf(stderr, L"\nFail : Disconnect DB");
-		return ERROR_CONNECT_DB;
-	}
+	VALIDATION_CHECK(connectToDB(hEnv, hDbc, connstring), L"\nFail : Connect DB", ERROR_CONNECT_DB);
 	wprintf(L"\nSUCCESS : Connect DB");
 
 	if (exportjson == 1) {
+		VALIDATION_CHECK(isInAccountUIDList(hDbc, accountuid), L"\nThis UID Doesn't EXIST!", ERROR_BAD_ARG);
 
-		// Check Whether AccounUid Exists
-		if (!isInAccountUIDList(hDbc, accountuid)) {
-			fwprintf(stderr, L"\nThis %s Doesn't EXIST!", Account_UID_Field_Name.c_str());
-			return ERROR_BAD_ARG;
-		}
-
-		// Get Table Name List(AccountUID Exists)
 		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
             INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
 
 		allTableToJson(tableNameList_uidExist, accountuid, hDbc, root);
 
-		if (!SQL_SUCCEEDED(writeJsonFile(root, target))) {
-			fwprintf(stderr, L"\nFAIL : Write JSON FILE");
-			return ERROR_WRITING_FILE;
-		}
+		SQL_SUCCESS_CHECK(writeJsonFile(root, target), L"\nFAIL : Write JSON FILE", ERROR_WRITING_FILE);
 	}
 	else if (importjson == 1) {
-		if (!SQL_SUCCEEDED(readJsonFile(root, source))) {
-			fwprintf(stderr, L"\nFAIL : Read JSON FILE");
-			return ERROR_READING_FILE;
-		}
-		
-		if (!SQL_SUCCEEDED(importJsonIntoDB(root, hDbc, accountuid))) {
-			fwprintf(stderr, L"\nFAIL : Insert Json To DB");
-			return ERROR_IMPORT_JSON;
-		}
+		SQL_SUCCESS_CHECK(readJsonFile(root, source), L"\nFAIL : Read JSON FILE", ERROR_READING_FILE);
+
+		SQL_SUCCESS_CHECK(importJsonIntoDB(root, hDbc, accountuid), L"\nFAIL : Insert Json To DB", ERROR_READING_FILE);
 	}
 	else if (deleterows == 1) {
-		// Get Table Name List(AccountUID Exists)
 		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
 
-		if (!SQL_SUCCEEDED(deleteTablesRows(tableNameList_uidExist, accountuid, hDbc))) {
-			fwprintf(stderr, L"\nFAIL : Delete Rows of Tables");
-			return ERROR_DELETE_TABLESROWS;
-		}
+		SQL_SUCCESS_CHECK(deleteTablesRows(tableNameList_uidExist, accountuid, hDbc), L"\nFAIL : Delete Rows of Tables", ERROR_DELETE_TABLESROWS);
 	}
 	else if (printtables == 1) {
-		// Get Table Name List(AccountUID Exists)
 		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
 
-		// Print tables
-		if (!SQL_SUCCEEDED(printTablesInList(hDbc, L"SELECT * FROM %s WHERE %s = %s", tableNameList_uidExist, accountuid))) {
-			fwprintf(stderr, L"\nFAIL : Print Tables");
-			return ERROR_PRINT_TABLES;
-		}
+		SQL_SUCCESS_CHECK(printTablesInList(hDbc, L"SELECT * FROM %s WHERE %s = %s", tableNameList_uidExist, accountuid), L"\nFAIL : Print Tables", ERROR_PRINT_TABLES);
 	}
 Exit:
-	if (!SQL_SUCCEEDED(disconnectDB(hEnv, hDbc, hStmt))) {
+	if (!disconnectDB(hEnv, hDbc, hStmt)) {
 		fwprintf(stderr, L"\nFAIL : Disconnect DB");
 		return ERROR_DISCONNECT_DB;
 	}
-	else {
-		fwprintf(stdout, L"\nSUCCESS : Disconnect DB");
-	}
-	return SUCCESS;
+	fwprintf(stdout, L"\nSUCCESS : Disconnect DB");
+
+	return RETURNVAL;
 }
 
-RETCODE sqlfExec(SQLHSTMT &hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	WCHAR fwszInput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	RETCODE RetCode = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
-	TRYODBC(hDbc, SQL_HANDLE_DBC, RetCode);
-	if (g_VERBOSE) {
-		fwprintf(stderr, L"\n%s", fwszInput);
-	}
-	RetCode = SQLExecDirect(hStmt, fwszInput, SQL_NTS);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
-Exit:
-	return RetCode;
-}
-
-std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	RETCODE     RetCode;
-	SQLSMALLINT sNumResults;
-	SQLHSTMT hStmt = NULL;
-	std::vector<std::wstring> rowValList;
-	WCHAR fwszInput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
-	if (RetCode == SQL_SUCCESS) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
-		if (sNumResults == 1) {
-			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
-				SQLUSMALLINT colnum = 1;
-				SQLLEN indicator;
-				const int bufsize = 512;
-				wchar_t buf[bufsize];
-				RetCode = SQLGetData(hStmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator);
-				if (SQL_SUCCEEDED(RetCode)) {
-					if (indicator != SQL_NULL_DATA) {
-						rowValList.push_back(buf);
-					}
-				}
-
-			}
-		}
-	}
-	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
-Exit:
-	return rowValList;
-}
-
-Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {
-	RETCODE     RetCode;
-	SQLSMALLINT sNumResults;
-	SQLHSTMT hStmt = NULL;
-	Json::Value resultJSON;
-	WCHAR fwszInput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
-	if (RetCode == SQL_SUCCESS) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
-		if (sNumResults > 0) {
-			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
-				SQLUSMALLINT colnum;
-				Json::Value current_record;
-				for (colnum = 1; colnum <= sNumResults; colnum++) {
-					const SQLSMALLINT buflen = 512;
-					SQLWCHAR colName[buflen];
-					SQLSMALLINT colType;
-					SQLDescribeCol(hStmt, colnum, colName, buflen, NULL, &colType, NULL, NULL, NULL);
-					SQLLEN indicator;
-					int colIntValue;
-					char colTinyIntValue;
-					short colSmallIntValue;
-					bool colBitValue;
-					float colFloatValue;
-					double colDoubleValue;
-					SQLWCHAR colWcharValue[buflen];
-					#define STORE_RECORD(x, y) 		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(&y), &indicator); \
-						if (SQL_SUCCEEDED(RetCode) && (indicator != SQL_NULL_DATA)) current_record[get_utf8(colName)] = y;
-
-					#define STORE_RECORD_STR(x, y)		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(&y), &indicator); \
-						if (SQL_SUCCEEDED(RetCode) && (indicator != SQL_NULL_DATA)) current_record[get_utf8(colName)] = get_utf8(y);
-					switch (colType) {
-					case SQL_INTEGER:
-						STORE_RECORD(SQL_INTEGER, colIntValue);
-						break;
-					case SQL_TINYINT:
-						STORE_RECORD(SQL_TINYINT, colTinyIntValue);
-						break;
-					case SQL_SMALLINT:
-						STORE_RECORD(SQL_SMALLINT, colSmallIntValue);
-						break;
-					case SQL_FLOAT:
-						STORE_RECORD(SQL_FLOAT, colFloatValue);
-						break;
-					case SQL_DOUBLE:
-						STORE_RECORD(SQL_DOUBLE, colDoubleValue);
-						break;
-					case SQL_BIT:
-						STORE_RECORD(SQL_BIT, colBitValue);
-						break;
-					case SQL_UNICODE:
-					case SQL_CHAR:
-					case SQL_BIGINT:
-					case SQL_BINARY:
-					case SQL_VARCHAR:
-					case SQL_LONGVARBINARY:
-					case SQL_DATE:
-					case SQL_TIME:
-					case SQL_TYPE_TIMESTAMP:
-					case SQL_TYPE_TIME:
-					case SQL_TYPE_DATE:
-					case SQL_TIMESTAMP:
-					case SQL_WVARCHAR:
-						STORE_RECORD_STR(SQL_UNICODE, colWcharValue);
-						break;
-					default:
-						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colName, colType);
-					}
-				}
-				resultJSON.append(current_record);
-			}
-		}
-	}
-	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
-Exit:
-	return resultJSON;
-}
-
-RETCODE connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr) {
-	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
-
-	SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
-
-	SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc);
-
-	RETCODE RetCode = SQLDriverConnect(hDbc, GetDesktopWindow(), const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
-	TRYODBC(hDbc, SQL_HANDLE_DBC, RetCode);
-Exit:
-	return RetCode;
-}
-
-RETCODE disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt) {
-	// Free ODBC handles and exit
-	SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
-	hStmt = NULL;
-
-	SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
-	hEnv = NULL;
-
-	RETCODE RetCode = SQLDisconnect(hDbc);
-	TRYODBC(hDbc, SQL_HANDLE_DBC, RetCode);
-	SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
-	hDbc = NULL;
-Exit:	
-	return RetCode;
-}
 
 RETCODE deleteTablesRows(std::vector<std::wstring> tableNameList, std::wstring accountUID, SQLHDBC hDbc) {
 	SQLHSTMT hStmt = NULL;
@@ -612,8 +414,5 @@ bool isInAccountUIDList(SQLHDBC hDbc, std::wstring accountUID) {
 			isaccountuidexist = true;
 		}
 	}
-	if (!isaccountuidexist) {
-		return false;
-	}
-	return true;
+	return isaccountuidexist;
 }

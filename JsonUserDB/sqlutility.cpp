@@ -8,9 +8,165 @@
 #include <string>
 #include <wchar.h>
 #include "sqlutility.h"
+#include "strutility.h"
 
+RETCODE sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+	WCHAR fwszInput[SQL_QUERY_SIZE];
+	va_list args;
+	va_start(args, wszInput);
+	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
+	va_end(args);
+	RETCODE RetCode = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
+	TRYODBC(hDbc, SQL_HANDLE_DBC, RetCode);
+	if (g_VERBOSE) {
+		fwprintf(stderr, L"\n%s", fwszInput);
+	}
+	RetCode = SQLExecDirect(hStmt, fwszInput, SQL_NTS);
+	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
+Exit:
+	return RetCode;
+}
 
-SHORT gHeight = 80;
+std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+	RETCODE     RetCode;
+	SQLSMALLINT sNumResults;
+	SQLHSTMT hStmt = NULL;
+	std::vector<std::wstring> rowValList;
+	WCHAR fwszInput[SQL_QUERY_SIZE];
+	va_list args;
+	va_start(args, wszInput);
+	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
+	va_end(args);
+	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
+	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
+	if (RetCode == SQL_SUCCESS) {
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
+		if (sNumResults == 1) {
+			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
+				SQLUSMALLINT colnum = 1;
+				SQLLEN indicator;
+				const int bufsize = 512;
+				wchar_t buf[bufsize];
+				RetCode = SQLGetData(hStmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator);
+				if (SQL_SUCCEEDED(RetCode)) {
+					if (indicator != SQL_NULL_DATA) {
+						rowValList.push_back(buf);
+					}
+				}
+			}
+		}
+	}
+	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
+Exit:
+	return rowValList;
+}
+
+Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {
+	RETCODE     RetCode;
+	SQLSMALLINT sNumResults;
+	SQLHSTMT hStmt = NULL;
+	Json::Value resultJSON;
+	WCHAR fwszInput[SQL_QUERY_SIZE];
+	va_list args;
+	va_start(args, wszInput);
+	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
+	va_end(args);
+	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
+	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
+	if (RetCode == SQL_SUCCESS) {
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
+		if (sNumResults > 0) {
+			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
+				SQLUSMALLINT colnum;
+				Json::Value current_record;
+				for (colnum = 1; colnum <= sNumResults; colnum++) {
+					const SQLSMALLINT buflen = 512;
+					SQLWCHAR colName[buflen];
+					SQLSMALLINT colType;
+					SQLDescribeCol(hStmt, colnum, colName, buflen, NULL, &colType, NULL, NULL, NULL);
+					SQLLEN indicator;
+					int colIntValue;
+					char colTinyIntValue;
+					short colSmallIntValue;
+					bool colBitValue;
+					float colFloatValue;
+					double colDoubleValue;
+					SQLWCHAR colWcharValue[buflen];
+					switch (colType) {
+					case SQL_INTEGER:
+						STORE_RECORD(SQL_INTEGER, colIntValue);
+						break;
+					case SQL_TINYINT:
+						STORE_RECORD(SQL_TINYINT, colTinyIntValue);
+						break;
+					case SQL_SMALLINT:
+						STORE_RECORD(SQL_SMALLINT, colSmallIntValue);
+						break;
+					case SQL_FLOAT:
+						STORE_RECORD(SQL_FLOAT, colFloatValue);
+						break;
+					case SQL_DOUBLE:
+						STORE_RECORD(SQL_DOUBLE, colDoubleValue);
+						break;
+					case SQL_BIT:
+						STORE_RECORD(SQL_BIT, colBitValue);
+						break;
+					case SQL_UNICODE:
+					case SQL_CHAR:
+					case SQL_BIGINT:
+					case SQL_BINARY:
+					case SQL_VARCHAR:
+					case SQL_LONGVARBINARY:
+					case SQL_DATE:
+					case SQL_TIME:
+					case SQL_TYPE_TIMESTAMP:
+					case SQL_TYPE_TIME:
+					case SQL_TYPE_DATE:
+					case SQL_TIMESTAMP:
+					case SQL_WVARCHAR:
+						STORE_RECORD_STR(SQL_UNICODE, colWcharValue);
+						break;
+					default:
+						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colName, colType);
+					}
+				}
+				resultJSON.append(current_record);
+			}
+		}
+	}
+	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
+Exit:
+	return resultJSON;
+}
+
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr) {
+	bool isSucceeded = false;
+	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv));
+	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0));
+	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc));
+	isSucceeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
+Exit:
+	return isSucceeded;
+}
+
+bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt) {
+	bool isSucceeded = false;
+	// Free ODBC handles and exit
+	if (hStmt != NULL) {
+		SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+		hStmt = NULL;
+	}
+	if (hEnv != NULL) {
+		SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
+		hEnv = NULL;
+	}
+	if (hDbc != NULL) {
+		isSucceeded = SQL_SUCCEEDED(SQLDisconnect(hDbc));
+		SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+		hDbc = NULL;
+	}
+	return isSucceeded;
+}
 
 void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
 	BINDING* pFirstBinding, * pThisBinding;
