@@ -70,7 +70,6 @@ void printTable(SQLHDBC hDbc, const WCHAR * wszInput, ...);
 void printTablesInList(SQLHDBC hDbc, const WCHAR * wszInput, std::vector<std::wstring> tableNameList, std::wstring accountUID);
 
 // ETC
-std::wstring makeConditionIgnoreTableNames(std::vector<std::wstring> exceptTableNameList);
 bool isUIDInAccountTable(SQLHDBC hDbc, std::wstring accountUID);
 void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int colIdx, std::vector<std::wstring> binColNameList, Json::Value::Members colNameList, Json::Value current_Row);
 
@@ -87,7 +86,6 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	std::vector<std::wstring> tableNameList_uidExist;
 	std::vector<std::wstring> ignoreTableNameList;
 	Json::Value root;
-	std::wstring condition_excepttablenames;
 	const WCHAR* accountuid = NULL;
 	const WCHAR* source = NULL;
 	const WCHAR* target = NULL;
@@ -182,18 +180,22 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		connstring = wcsbuffer;
 	}
 
-	// Make Wstring(Ignore Table Name List) For Where
-	condition_excepttablenames = makeConditionIgnoreTableNames(ignoreTableNameList);
-
 	// Connect DB
 	SUCCEEDED_CHECK(connectToDB(hEnv, hDbc, connstring), L"\nFail : Connect DB", ERROR_CONNECT_DB);
 	wprintf(L"\nSUCCESS : Connect DB");
 
+	// Mode Excution
+	if (exportjson == 1 || deleterows == 1 || printtables == 1) {
+		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
+            INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", Account_UID_Field_Name.c_str());
+
+		// REMOVE Ignore Table 
+		for (int tableidx = 0; tableidx < ignoreTableNameList.size(); tableidx++) {
+			tableNameList_uidExist.erase(std::remove(tableNameList_uidExist.begin(), tableNameList_uidExist.end(), ignoreTableNameList[tableidx]), tableNameList_uidExist.end());
+		}
+	}
 	if (exportjson == 1) {
 		SUCCEEDED_CHECK(isUIDInAccountTable(hDbc, accountuid), L"\nThis UID Doesn't EXIST!", ERROR_BAD_ARG);
-
-		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
-            INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
 
 		exportJsonFromDB(tableNameList_uidExist, accountuid, hDbc, root);
 
@@ -205,16 +207,9 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hDbc, accountuid), L"\nFAIL : Import Json To DB", ERROR_READING_FILE);
 	}
 	else if (deleterows == 1) {
-		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
-			INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
-
-		//VALIDATION_CHECK(deleteTablesRows(tableNameList_uidExist, accountuid, hDbc), L"\nFAIL : Delete Rows of Tables", ERROR_DELETE_TABLESROWS);
 		deleteTablesRows(tableNameList_uidExist, accountuid, hDbc);
 	}
 	else if (printtables == 1) {
-		tableNameList_uidExist = sqlf_SingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
-			INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'%s", Account_UID_Field_Name.c_str(), condition_excepttablenames.c_str());
-
 		printTablesInList(hDbc, L"SELECT * FROM %s WHERE %s = %s", tableNameList_uidExist, accountuid);
 	}
 Exit:
@@ -396,14 +391,6 @@ void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int co
 	}
 	colNames = colNames + delimiter_colfront + colname + delimiter_colend;
 	valNames = valNames + delimiter_valfront + valname + delimiter_valend;
-}
-
-std::wstring makeConditionIgnoreTableNames(std::vector<std::wstring> exceptTableNameList) {
-	std::wstring condition = L"";
-	for (int tableidx = 0; tableidx < exceptTableNameList.size(); tableidx++) {
-		condition = condition + L" AND TABLE_NAME != '" + exceptTableNameList[tableidx] + L"'";
-	}
-	return condition;
 }
 
 bool isUIDInAccountTable(SQLHDBC hDbc, std::wstring accountUID) {
