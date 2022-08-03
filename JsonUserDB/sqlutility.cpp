@@ -10,25 +10,23 @@
 #include "sqlutility.h"
 #include "strutility.h"
 
-RETCODE sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+	bool isSucceeded = false;
 	WCHAR fwszInput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	RETCODE RetCode = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
-	TRYODBC(hDbc, SQL_HANDLE_DBC, RetCode);
+	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
 	if (g_VERBOSE) {
 		fwprintf(stderr, L"\n%s", fwszInput);
 	}
-	RetCode = SQLExecDirect(hStmt, fwszInput, SQL_NTS);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
+	isSucceeded = SQL_SUCCEEDED(SQLExecDirect(hStmt, fwszInput, SQL_NTS));
 Exit:
-	return RetCode;
+	return isSucceeded;
 }
 
 std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	RETCODE     RetCode;
 	SQLSMALLINT sNumResults;
 	SQLHSTMT hStmt = NULL;
 	std::vector<std::wstring> rowValList;
@@ -37,18 +35,15 @@ std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ..
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
-	if (RetCode == SQL_SUCCESS) {
+	if (sqlfExec(hStmt, hDbc, fwszInput)) {
 		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
 		if (sNumResults == 1) {
-			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
+			while (SQL_SUCCEEDED(SQLFetch(hStmt))) {
 				SQLUSMALLINT colnum = 1;
 				SQLLEN indicator;
 				const int bufsize = 512;
 				wchar_t buf[bufsize];
-				RetCode = SQLGetData(hStmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator);
-				if (SQL_SUCCEEDED(RetCode)) {
+				if (SQL_SUCCEEDED(SQLGetData(hStmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
 					if (indicator != SQL_NULL_DATA) {
 						rowValList.push_back(buf);
 					}
@@ -56,13 +51,14 @@ std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ..
 			}
 		}
 	}
-	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
 Exit:
+	if (hStmt != SQL_CLOSE) {
+		SQLFreeStmt(hStmt, SQL_CLOSE);
+	}
 	return rowValList;
 }
 
 Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {
-	RETCODE     RetCode;
 	SQLSMALLINT sNumResults;
 	SQLHSTMT hStmt = NULL;
 	Json::Value resultJSON;
@@ -71,19 +67,17 @@ Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHA
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	RetCode = sqlfExec(hStmt, hDbc, fwszInput);
-	TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode);
-	if (RetCode == SQL_SUCCESS) {
+	if (sqlfExec(hStmt, hDbc, fwszInput)) {
 		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &sNumResults));
 		if (sNumResults > 0) {
-			while (SQL_SUCCEEDED(RetCode = SQLFetch(hStmt))) {
+			while (SQL_SUCCEEDED(SQLFetch(hStmt))) {
 				SQLUSMALLINT colnum;
 				Json::Value current_record;
 				for (colnum = 1; colnum <= sNumResults; colnum++) {
-					const SQLSMALLINT buflen = 512;
+					const SQLSMALLINT buflen = 2048;
 					SQLWCHAR colName[buflen];
 					SQLSMALLINT colType;
-					SQLDescribeCol(hStmt, colnum, colName, buflen, NULL, &colType, NULL, NULL, NULL);
+					TRYODBC(hStmt, SQL_HANDLE_STMT, SQLDescribeCol(hStmt, colnum, colName, buflen, NULL, &colType, NULL, NULL, NULL););
 					SQLLEN indicator;
 					int colIntValue;
 					char colTinyIntValue;
@@ -134,8 +128,10 @@ Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHA
 			}
 		}
 	}
-	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
 Exit:
+	if (hStmt != SQL_CLOSE) {
+		SQLFreeStmt(hStmt, SQL_CLOSE);
+	}
 	return resultJSON;
 }
 

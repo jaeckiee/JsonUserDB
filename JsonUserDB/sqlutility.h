@@ -25,12 +25,12 @@
 #define PIPE                L'|'
 
 #define STORE_RECORD(x, y) 		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(&y), &indicator); \
-						if (SQL_SUCCEEDED(RetCode) && (indicator != SQL_NULL_DATA)) current_record[get_utf8(colName)] = y;
+						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colName)] = y;
 
 #define STORE_RECORD_STR(x, y)		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(&y), &indicator); \
-						if (SQL_SUCCEEDED(RetCode) && (indicator != SQL_NULL_DATA)) current_record[get_utf8(colName)] = get_utf8(y);
+						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colName)] = get_utf8(y);
 
 static SHORT gHeight = 80;
 static int g_VERBOSE = 0;
@@ -44,7 +44,7 @@ typedef struct STR_BINDING {
 } BINDING;
 
 // For SQL Execute
-RETCODE sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
+bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
 Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
 
 // Return Result Of Query
