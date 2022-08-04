@@ -73,7 +73,7 @@ bool writeJsonFile(Json::Value root, std::wstring fileName);
 bool readJsonFile(Json::Value & root, std::wstring fileName);
 
 // ETC
-bool isUIDInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList);
+bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList);
 void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int colIdx, std::vector<std::wstring> binColNameList, Json::Value::Members colNameList, Json::Value currentRow);
 bool isJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tableNameList);
 
@@ -131,7 +131,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		return ERROR_BAD_ARG;
 	}
 	if (verbose != 0) {
-		gVERBOSE = verbose;
+		GVERBOSE = verbose;
 	}
 	if (exportjson == 1) {
 		if (target == NULL || ((source == NULL) == (connsection == NULL))) {
@@ -186,7 +186,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
         INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", ACCOUNT_UID_FIELD_NAME.c_str()), exclusiontablenamelist);
 	
 	if (exportjson == 1) {
-		SUCCEEDED_CHECK(isUIDInTables(hDbc, accountuid, uidexisttablenamelist), ERROR_BAD_ARG, L"CHECK UID");
+		SUCCEEDED_CHECK(isUidInTables(hDbc, accountuid, uidexisttablenamelist), ERROR_BAD_ARG, L"CHECK UID");
 
 		SUCCEEDED_CHECK(exportJsonFromDB(uidexisttablenamelist, accountuid, hDbc, root), ERROR_EXPORT_JSON, L"Export JSON");
 
@@ -376,7 +376,7 @@ void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int co
 	valNames = valNames + delimitervalfront + valname + delimitervalend;
 }
 
-bool isUIDInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList) {
+bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList) {
 	for (int tableidx = 0; tableidx < tableNameList.size(); tableidx++) {
 		std::vector<std::wstring> accountuidlist = sqlfSingleCol(hDbc, L"SELECT %s FROM %s WHERE %s = %s", ACCOUNT_UID_FIELD_NAME.c_str(), tableNameList[tableidx].c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str());
 		if (!accountuidlist.empty()) {
