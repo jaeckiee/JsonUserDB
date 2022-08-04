@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <string>
+#include <vector>
 #include "strutility.h"
 
 std::string get_utf8(const std::wstring& wstr) {
@@ -16,4 +17,11 @@ std::wstring get_utf16(const std::string& str) {
 	std::wstring res(sz, 0);
 	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &res[0], sz);
 	return res;
+}
+
+std::vector<std::wstring> getSubtractedWstrList(std::vector<std::wstring> subtractedWstrLiST, std::vector<std::wstring> subtractingWstrList) {
+	for (int tableidx = 0; tableidx < subtractingWstrList.size(); tableidx++) {
+		subtractedWstrLiST.erase(std::remove(subtractedWstrLiST.begin(), subtractedWstrLiST.end(), subtractingWstrList[tableidx]), subtractedWstrLiST.end());
+	}
+	return subtractedWstrLiST;
 }

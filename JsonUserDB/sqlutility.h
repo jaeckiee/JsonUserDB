@@ -26,14 +26,14 @@
 
 #define STORE_RECORD(x, y) 		\
 						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colName)] = y;
+						if (indicator != SQL_NULL_DATA) currentrecord[get_utf8(colname)] = y;
 
 #define STORE_RECORD_STR(x, y)		\
 						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colName)] = get_utf8(y);
+						if (indicator != SQL_NULL_DATA) currentrecord[get_utf8(colname)] = get_utf8(y);
 
 static SHORT gHeight = 80;
-static int g_VERBOSE = 0;
+static int gVERBOSE = 0;
 
 typedef struct STR_BINDING {
     SQLSMALLINT         cDisplaySize;           /* size to display  */
@@ -45,14 +45,17 @@ typedef struct STR_BINDING {
 
 // For SQL Execute
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
-Json::Value sqlf_MultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
+Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
 
 // Return Result Of Query
-std::vector<std::wstring> sqlf_SingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
+std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
 
 // Connect And Diconnect DB
 bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr);
 bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt);
+
+// Print Table
+bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...);
 
 // Print Info
 void HandleDiagnosticRecord(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode);
