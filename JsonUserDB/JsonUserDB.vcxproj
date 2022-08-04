@@ -141,6 +141,7 @@
     <ClInclude Include="argparse.h" />
     <ClInclude Include="json\json-forwards.h" />
     <ClInclude Include="json\json.h" />
+    <ClInclude Include="sqlbuilder.h" />
     <ClInclude Include="sqlutility.h" />
     <ClInclude Include="strutility.h" />
   </ItemGroup>

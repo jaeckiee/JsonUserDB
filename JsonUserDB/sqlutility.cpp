@@ -18,7 +18,7 @@ bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
-	if (gVERBOSE) {
+	if (GVERBOSE) {
 		fwprintf(stderr, L"\n%s", fwszInput);
 	}
 	isSucceeded = SQL_SUCCEEDED(SQLExecDirect(hStmt, fwszInput, SQL_NTS));
@@ -206,14 +206,14 @@ void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
 	do {
 		// Fetch a row
 
-		if (iCount++ >= gHeight - 2) {
+		if (iCount++ >= GHeight - 2) {
 			int     nInputChar;
 			bool    fEnterReceived = false;
 
 			while (!fEnterReceived) {
 				wprintf(L"              ");
 				SetConsole(cDisplaySize + 2, TRUE);
-				wprintf(L"   Press ENTER to continue, Q to quit (height:%hd)", gHeight);
+				wprintf(L"   Press ENTER to continue, Q to quit (height:%hd)", GHeight);
 				SetConsole(cDisplaySize + 2, FALSE);
 
 				nInputChar = _getch();
@@ -361,7 +361,7 @@ void SetConsole(DWORD dwDisplaySize, BOOL fInvert) {
 				csbInfo.dwSize.X = (SHORT)dwDisplaySize;
 				SetConsoleScreenBufferSize(hConsole, csbInfo.dwSize);
 			}
-			gHeight = csbInfo.dwSize.Y;
+			GHeight = csbInfo.dwSize.Y;
 		}
 
 		if (fInvert) {

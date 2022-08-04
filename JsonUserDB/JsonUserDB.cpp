@@ -17,6 +17,9 @@
 #include "sqlutility.h"
 #include "argparse.h"
 #include "json/json.h"
+#include "sqlbuilder.h"
+#include <cassert>
+#include <sstream>
 
 // return codes
 const int SUCCESS = 0;
