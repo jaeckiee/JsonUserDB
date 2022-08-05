@@ -12,6 +12,7 @@
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	bool isSucceeded = false;
+	RETCODE retcode;
 	WCHAR fwszInput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
@@ -21,7 +22,12 @@ bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	if (GVERBOSE) {
 		fwprintf(stderr, L"\n%s", fwszInput);
 	}
-	isSucceeded = SQL_SUCCEEDED(SQLExecDirect(hStmt, fwszInput, SQL_NTS));
+	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszInput, SQL_NTS))) {
+		isSucceeded = true;
+	}
+	else {
+		HandleDiagnosticRecord(hStmt, SQL_HANDLE_STMT, retcode);
+	}
 Exit:
 	return isSucceeded;
 }
@@ -122,6 +128,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 						break;
 					default:
 						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, coltype);
+						exit(-1);
 					}
 				}
 				resultjson.append(currentrecord);
@@ -129,8 +136,9 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 		}
 	}
 Exit:
-	if (hStmt != SQL_CLOSE) {
+	if (hStmt != NULL) {
 		SQLFreeStmt(hStmt, SQL_CLOSE);
+		hStmt = NULL;
 	}
 	return resultjson;
 }
@@ -182,8 +190,9 @@ bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 		}
 	}
 Exit:
-	if (hStmt != SQL_CLOSE) {
+	if (hStmt != NULL) {
 		SQLFreeStmt(hStmt, SQL_CLOSE);
+		hStmt = NULL;
 	}
 	return issucceeded;
 }

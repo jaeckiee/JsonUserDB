@@ -2,7 +2,7 @@
 #include <vector>
 #include <string>
 
-namespace sql {
+namespace sqlbuilder {
 
 class column;
 
@@ -506,8 +506,23 @@ public:
 
     template <typename T>
     InsertModel& insert(const std::wstring& c, const T& data) {
-        _columns.push_back(c);
+        std::wstring col(L"[");
+        col.append(c);
+        col.append(L"]");
+        _columns.push_back(col);
         _values.push_back(to_value(data));
+        return *this;
+    }
+
+    template <typename T>
+    InsertModel& insertBinaryType(const std::wstring& c, const T& data) {
+        const std::wstring prefix = L"0x";
+        Param param(prefix + data);
+        std::wstring col(L"[");
+        col.append(c);
+        col.append(L"]");
+        _columns.push_back(col);
+        _values.push_back(to_value<Param>(param));
         return *this;
     }
 

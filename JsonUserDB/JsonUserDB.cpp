@@ -76,8 +76,6 @@ bool writeJsonFile(Json::Value root, std::wstring fileName);
 bool readJsonFile(Json::Value & root, std::wstring fileName);
 
 // ETC
-bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList);
-void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int colIdx, std::vector<std::wstring> binColNameList, Json::Value::Members colNameList, Json::Value currentRow);
 bool isJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tableNameList);
 
 int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
@@ -130,7 +128,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		return SUCCESS;
 	}
 	if (accountuid == NULL) {
-		fwprintf(stderr, L"Argument Not correct\n");
+		fwprintf(stderr, L"Invalid argument\n");
 		return ERROR_BAD_ARG;
 	}
 	if (verbose != 0) {
@@ -138,20 +136,20 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	}
 	if (exportjson == 1) {
 		if (target == NULL || ((source == NULL) == (connsection == NULL))) {
-			fwprintf(stderr, L"Argument Not correct\n");
+			fwprintf(stderr, L"Invalid argument\n");
 			return ERROR_BAD_ARG;
 		}
 	}
 	if (importjson == 1) {
 		if (source == NULL || ((target == NULL) == (connsection == NULL))) {
-			fwprintf(stderr, L"Argument Not correct\n");
+			fwprintf(stderr, L"Invalid argument\n");
 			return ERROR_BAD_ARG;
 		}
 	}
 
 	// Mode Choice
 	if (exportjson + importjson + deleterows + printtables != 1) {
-		fwprintf(stderr, L"This Mode Not Supported\n");
+		fwprintf(stderr, L"This mode is not supported\n");
 		return ERROR_BAD_ARG;
 	}
 
@@ -183,43 +181,43 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	}
 
 	// Connect DB
-	SUCCEEDED_CHECK(connectToDB(hEnv, hDbc, connstring), ERROR_CONNECT_DB, L"Connect DB");
+	SUCCEEDED_CHECK(connectToDB(hEnv, hDbc, connstring), ERROR_CONNECT_DB, L"Connecting DB");
 
 	uidexisttablenamelist = getSubtractedWstrList(sqlfSingleCol(hDbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
         INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", ACCOUNT_UID_FIELD_NAME.c_str()), exclusiontablenamelist);
 	
 	if (exportjson == 1) {
-		SUCCEEDED_CHECK(isUidInTables(hDbc, accountuid, uidexisttablenamelist), ERROR_BAD_ARG, L"CHECK UID");
+		//SUCCEEDED_CHECK(isUidInTables(hDbc, accountuid, uidexisttablenamelist), ERROR_BAD_ARG, L"CHECK UID");
 
-		SUCCEEDED_CHECK(exportJsonFromDB(uidexisttablenamelist, accountuid, hDbc, root), ERROR_EXPORT_JSON, L"Export JSON");
+		SUCCEEDED_CHECK(exportJsonFromDB(uidexisttablenamelist, accountuid, hDbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
 
-		SUCCEEDED_CHECK(writeJsonFile(root, target), ERROR_WRITING_FILE, L"Write JSON FILE");
+		SUCCEEDED_CHECK(writeJsonFile(root, target), ERROR_WRITING_FILE, L"Writing JSON file");
 	}
 	else if (importjson == 1) {
-		SUCCEEDED_CHECK(readJsonFile(root, source), ERROR_READING_FILE, L"Read JSON FILE");
+		SUCCEEDED_CHECK(readJsonFile(root, source), ERROR_READING_FILE, L"Reading JSON file");
 
-		SUCCEEDED_CHECK(isJsonTableNamseInTableList(root, uidexisttablenamelist), ERROR_TABLE_NOT_EXSIT, L"CHECK JSON Table Name");
+		SUCCEEDED_CHECK(isJsonTableNamseInTableList(root, uidexisttablenamelist), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in DB");
 
-		SUCCEEDED_CHECK(importJsonIntoDB(root, hDbc, accountuid), ERROR_READING_FILE, L"Import Json To DB");
+		SUCCEEDED_CHECK(importJsonIntoDB(root, hDbc, accountuid), ERROR_READING_FILE, L"Importing Json into DB");
 	}
 	else if (deleterows == 1) {
 		for (int tableidx = 0; tableidx < uidexisttablenamelist.size(); tableidx++) {
-			SUCCEEDED_CHECK(deleteTableRows(hDbc, uidexisttablenamelist[tableidx], accountuid), ERROR_DELETE_TABLEROWS, L"Delete Table Rows");
+			SUCCEEDED_CHECK(deleteTableRows(hDbc, uidexisttablenamelist[tableidx], accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
 		}
 	}
 	else if (printtables == 1) {
 		for (int tableidx = 0; tableidx < uidexisttablenamelist.size(); tableidx++) {
 			std::wstring currenttablename = uidexisttablenamelist[tableidx];
 			fwprintf(stdout, L"TABLE NAME : %s\n", currenttablename.c_str());
-			SUCCEEDED_CHECK(printTable(hDbc, L"SELECT * FROM %s WHERE %s = %s", currenttablename.c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountuid), ERROR_PRINT_TABLE, L"Print Tables");
+			SUCCEEDED_CHECK(printTable(hDbc, L"SELECT * FROM %s WHERE %s = %s", currenttablename.c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountuid), ERROR_PRINT_TABLE, L"Printing tables");
 		}
 	}
 Exit:
 	if (!disconnectDB(hEnv, hDbc, hStmt)) {
-		fwprintf(stderr, L"FAIL : Disconnect DB\n");
+		fwprintf(stderr, L"Failed : Disconnecting DB\n");
 		return ERROR_DISCONNECT_DB;
 	}
-	fwprintf(stdout, L"SUCCESS : Disconnect DB\n");
+	fwprintf(stdout, L"SUCCESS : Disconnecting DB\n");
 	return RETURNVAL;
 }
 
@@ -227,10 +225,10 @@ bool deleteTableRows(SQLHDBC hDbc, std::wstring tableName, std::wstring accountU
 	bool issucceeded = false;
 	SQLHSTMT hStmt = NULL;
 	issucceeded = sqlfExec(hStmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", tableName.c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str(), tableName.c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str());
-	TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
 Exit:
-	if (hStmt != SQL_CLOSE) {
+	if (hStmt != NULL) {
 		SQLFreeStmt(hStmt, SQL_CLOSE);
+		hStmt = NULL;
 	}
 	return issucceeded;
 }
@@ -240,10 +238,18 @@ bool isJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tab
 	if (root == NULL) {
 		return false;
 	}
+	//return root.get(tableName) == JsonValue::null;
+
+	//for (tableNameList.begin(); ...; end()) {
+	//	if (root.get(tableName) == JsonValue::null)
+	//		return false;
+	//}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 		Json::Value currentkey = iter.key();
 		std::wstring currenttablename = get_utf16(currentkey.asString());
-		if (!(std::find(tableNameList.begin(), tableNameList.end(), currenttablename) != tableNameList.end()) && currenttablename.compare(ACCOUNT_UID_FIELD_NAME) != 0) {
+		if (currenttablename.compare(ACCOUNT_UID_FIELD_NAME) == 0)
+			continue;
+		if (!(std::find(tableNameList.begin(), tableNameList.end(), currenttablename) != tableNameList.end())) {
 			return false;
 		}
 	}
@@ -253,7 +259,7 @@ bool isJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tab
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 	bool issucceeded = false;
 	SQLHSTMT hStmt = NULL;
-	if(root == NULL) {
+	if (root == NULL) {
 		return issucceeded;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
@@ -261,30 +267,40 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 		Json::Value currentkey = iter.key();
 		std::wstring currenttablename = get_utf16(currentkey.asString());
 		bincolnamelist = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE DATA_TYPE = 'binary' AND TABLE_NAME = '%s'", currenttablename.c_str());
+		// columnInfos = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME, DATA_TYPE, ... FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", currenttablename.c_str());
 		if (currenttablename.compare(ACCOUNT_UID_FIELD_NAME) != 0) {
 			Json::Value currenttable = root[get_utf8(currenttablename)];
 			for (int rowidx = 0; rowidx < currenttable.size(); rowidx++) {
+				sqlbuilder::InsertModel insertmodel;
 				Json::Value currentrow = currenttable[rowidx];
-				Json::Value::Members currentrowcolnamelist = currentrow.getMemberNames();
-				int currentrowcolnamelistsize = currentrowcolnamelist.size();
-				if (currentrowcolnamelistsize > 0) {
-					std::wstring colnames = L"";
-					std::wstring valnames = L"";
-					for (int colidx = 0; colidx < currentrowcolnamelistsize; colidx++) {
-						makeValNamesColNames(colnames, valnames, colidx, bincolnamelist, currentrowcolnamelist, currentrow);
+				if (currentrow.size() <= 0)
+					continue;
+				insertmodel.insert(ACCOUNT_UID_FIELD_NAME, accountUid).into(currenttablename);
+				for(Json::Value::const_iterator currentRowIt = currentrow.begin(); currentRowIt != currentrow.end(); currentRowIt++) {
+					Json::String jsonColumnName = currentRowIt.key().asCString();
+					std::wstring colname = get_utf16(jsonColumnName);
+					std::wstring val = get_utf16(currentrow[jsonColumnName].asString());
+					if (std::find(bincolnamelist.begin(), bincolnamelist.end(), colname) != bincolnamelist.end()) {
+						insertmodel.insertBinaryType(colname, val);
 					}
-					issucceeded = sqlfExec(hStmt, hDbc, L"INSERT INTO %s(%s, %s) VALUES('%s', %s)", currenttablename.c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), colnames.c_str(), accountUid.c_str(), valnames.c_str());
-					if (!issucceeded) {
-						goto Exit;
+					else {
+						insertmodel.insert(colname, val);
 					}
-					TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
 				}
+				issucceeded = sqlfExec(hStmt, hDbc, (insertmodel.str()).c_str());
+				if (!issucceeded) {
+					wprintf(L"%s \n", currenttablename.c_str());
+					goto Exit;
+				}
+				TRYODBC(hStmt, SQL_HANDLE_STMT, SQLFreeStmt(hStmt, SQL_CLOSE));
+				hStmt = NULL;
 			}
 		}
 	}
 Exit:
-	if (hStmt != SQL_CLOSE) {
+	if (hStmt != NULL) {
 		SQLFreeStmt(hStmt, SQL_CLOSE);
+		hStmt = NULL;
 	}
 	return issucceeded;
 }
@@ -322,10 +338,12 @@ bool writeJsonFile(Json::Value root, std::wstring fileName) {
 	outputconfig = writer.write(root);
 	fileerr = _wfopen_s(&jsonfile, fileName.c_str(), L"wb");
 	if (fileerr != 0) {
+		// Failed to create file
 		return false;
 	}
 	size_t fileSize = fwrite(outputconfig.c_str(), itemsize, outputconfig.length(), jsonfile);
 	if (ferror(jsonfile)) {
+		// Failed to write file
 		return false;
 	}
 	fclose(jsonfile);
@@ -339,52 +357,19 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 	ifs.open(fileName);
 	if (ifs.good()) {
 		if (parseFromStream(builder, ifs, &root, &errs)) {
+			//fprintf(stderr, "%s", errs)
 			return true;
 		}
 	}
 	return false;
 }
 
-//	변경 예정
-void makeValNamesColNames(std::wstring& colNames, std::wstring& valNames, int colIdx, std::vector<std::wstring> binColNameList, Json::Value::Members colNameList, Json::Value currentRow) {
-	std::wstring colname;
-	std::wstring valname;
-	std::wstring delimitervalfront;
-	std::wstring delimitervalend;
-	std::wstring delimitercolfront = L"\"";
-	std::wstring delimitercolend = L"\"";
-	std::wstring delimiterand = L", ";
-	bool isbinarycol = false;
-	colname = get_utf16(colNameList[colIdx]);
-	valname = get_utf16(currentRow[colNameList[colIdx]].asString());
-	for (int colidx = 0; colidx < binColNameList.size(); colidx++) {
-		if (binColNameList[colidx].compare(colname) == 0) {
-			isbinarycol = true;
-			break;
-		}
-	}
-	if (isbinarycol) {
-		delimitervalfront = L"0x";
-		delimitervalend = L"";
-	}
-	else {
-		delimitervalfront = L"'";
-		delimitervalend = L"'";
-	}
-	if (colIdx > 0) {
-		delimitercolfront = delimiterand + delimitercolfront;
-		delimitervalfront = delimiterand + delimitervalfront;
-	}
-	colNames = colNames + delimitercolfront + colname + delimitercolend;
-	valNames = valNames + delimitervalfront + valname + delimitervalend;
-}
-
-bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList) {
-	for (int tableidx = 0; tableidx < tableNameList.size(); tableidx++) {
-		std::vector<std::wstring> accountuidlist = sqlfSingleCol(hDbc, L"SELECT %s FROM %s WHERE %s = %s", ACCOUNT_UID_FIELD_NAME.c_str(), tableNameList[tableidx].c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str());
-		if (!accountuidlist.empty()) {
-			return true;
-		}
-	}
-	return false;
-}
+//bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList) {
+//	for (int tableidx = 0; tableidx < tableNameList.size(); tableidx++) {
+//		std::vector<std::wstring> accountuidlist = sqlfSingleCol(hDbc, L"SELECT %s FROM %s WHERE %s = %s", ACCOUNT_UID_FIELD_NAME.c_str(), tableNameList[tableidx].c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str());
+//		if (!accountuidlist.empty()) {
+//			return true;
+//		}
+//	}
+//	return false;
+//}
