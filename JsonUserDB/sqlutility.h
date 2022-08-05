@@ -25,15 +25,15 @@
 #define PIPE                L'|'
 
 #define STORE_RECORD(x, y) 		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) currentrecord[get_utf8(colname)] = y;
+						SQLGetData(hstmt, colnum, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colname)] = y;
 
 #define STORE_RECORD_STR(x, y)		\
-						SQLGetData(hStmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) currentrecord[get_utf8(colname)] = get_utf8(y);
+						SQLGetData(hstmt, colnum, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colname)] = get_utf8(y);
 
-static SHORT GHeight = 80;
-static int GVERBOSE = 0;
+static SHORT g_height = 80;
+static int g_verbose = 0;
 
 typedef struct STR_BINDING {
     SQLSMALLINT         cDisplaySize;           /* size to display  */

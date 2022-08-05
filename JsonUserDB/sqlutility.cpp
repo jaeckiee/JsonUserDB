@@ -11,105 +11,105 @@
 #include "strutility.h"
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	bool isSucceeded = false;
+	bool is_succeeded = false;
 	RETCODE retcode;
-	WCHAR fwszInput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
-	if (GVERBOSE) {
-		fwprintf(stderr, L"\n%s", fwszInput);
-	}
-	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszInput, SQL_NTS))) {
-		isSucceeded = true;
-	}
-	else {
-		HandleDiagnosticRecord(hStmt, SQL_HANDLE_STMT, retcode);
-	}
-Exit:
-	return isSucceeded;
-}
-
-std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	SQLSMALLINT snumresults;
-	SQLHSTMT hStmt = NULL;
-	std::vector<std::wstring> rowvallist;
 	WCHAR fwszinput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	if (sqlfExec(hStmt, hDbc, fwszinput)) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &snumresults));
-		if (snumresults == 1) {
-			while (SQL_SUCCEEDED(SQLFetch(hStmt))) {
+	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
+	if (g_verbose) {
+		fwprintf(stderr, L"\n%s", fwszinput);
+	}
+	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszinput, SQL_NTS))) {
+		is_succeeded = true;
+	}
+	else {
+		HandleDiagnosticRecord(hStmt, SQL_HANDLE_STMT, retcode);
+	}
+Exit:
+	return is_succeeded;
+}
+
+std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+	SQLSMALLINT snum_results;
+	SQLHSTMT hstmt = NULL;
+	std::vector<std::wstring> row_val_list;
+	WCHAR fwszinput[SQL_QUERY_SIZE];
+	va_list args;
+	va_start(args, wszInput);
+	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
+	va_end(args);
+	if (sqlfExec(hstmt, hDbc, fwszinput)) {
+		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
+		if (snum_results == 1) {
+			while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
 				SQLUSMALLINT colnum = 1;
 				SQLLEN indicator;
 				const int bufsize = 512;
 				wchar_t buf[bufsize];
-				if (SQL_SUCCEEDED(SQLGetData(hStmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
+				if (SQL_SUCCEEDED(SQLGetData(hstmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
 					if (indicator != SQL_NULL_DATA) {
-						rowvallist.push_back(buf);
+						row_val_list.push_back(buf);
 					}
 				}
 			}
 		}
 	}
 Exit:
-	if (hStmt != SQL_CLOSE) {
-		SQLFreeStmt(hStmt, SQL_CLOSE);
+	if (hstmt != SQL_CLOSE) {
+		SQLFreeStmt(hstmt, SQL_CLOSE);
 	}
-	return rowvallist;
+	return row_val_list;
 }
 
 Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {
-	SQLSMALLINT snumresults;
-	SQLHSTMT hStmt = NULL;
-	Json::Value resultjson;
+	SQLSMALLINT snum_results;
+	SQLHSTMT hstmt = NULL;
+	Json::Value result_json;
 	WCHAR fwszinput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	if (sqlfExec(hStmt, hDbc, fwszinput)) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &snumresults));
-		if (snumresults > 0) {
-			while (SQL_SUCCEEDED(SQLFetch(hStmt))) {
+	if (sqlfExec(hstmt, hDbc, fwszinput)) {
+		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
+		if (snum_results > 0) {
+			while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
 				SQLUSMALLINT colnum;
-				Json::Value currentrecord;
-				for (colnum = 1; colnum <= snumresults; colnum++) {
+				Json::Value current_record;
+				for (colnum = 1; colnum <= snum_results; colnum++) {
 					const SQLSMALLINT buflen = 2048;
 					SQLWCHAR colname[buflen];
 					SQLSMALLINT coltype;
-					TRYODBC(hStmt, SQL_HANDLE_STMT, SQLDescribeCol(hStmt, colnum, colname, buflen, NULL, &coltype, NULL, NULL, NULL););
+					TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, colnum, colname, buflen, NULL, &coltype, NULL, NULL, NULL););
 					SQLLEN indicator;
-					int colIntval;
-					char coltinyintval;
-					short colsmallintval;
-					bool colbitval;
-					float colfloatval;
-					double coldoubleval;
-					SQLWCHAR colwcharval[buflen];
+					int col_Int_val;
+					char col_tinyint_val;
+					short col_smallint_val;
+					bool col_bit_val;
+					float col_float_val;
+					double col_double_val;
+					SQLWCHAR col_wchar_val[buflen];
 					switch (coltype) {
 					case SQL_INTEGER:
-						STORE_RECORD(SQL_INTEGER, colIntval);
+						STORE_RECORD(SQL_INTEGER, col_Int_val);
 						break;
 					case SQL_TINYINT:
-						STORE_RECORD(SQL_TINYINT, coltinyintval);
+						STORE_RECORD(SQL_TINYINT, col_tinyint_val);
 						break;
 					case SQL_SMALLINT:
-						STORE_RECORD(SQL_SMALLINT, colsmallintval);
+						STORE_RECORD(SQL_SMALLINT, col_smallint_val);
 						break;
 					case SQL_FLOAT:
-						STORE_RECORD(SQL_FLOAT, colfloatval);
+						STORE_RECORD(SQL_FLOAT, col_float_val);
 						break;
 					case SQL_DOUBLE:
-						STORE_RECORD(SQL_DOUBLE, coldoubleval);
+						STORE_RECORD(SQL_DOUBLE, col_double_val);
 						break;
 					case SQL_BIT:
-						STORE_RECORD(SQL_BIT, colbitval);
+						STORE_RECORD(SQL_BIT, col_bit_val);
 						break;
 					case SQL_UNICODE:
 					case SQL_CHAR:
@@ -124,37 +124,37 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_TYPE_DATE:
 					case SQL_TIMESTAMP:
 					case SQL_WVARCHAR:
-						STORE_RECORD_STR(SQL_UNICODE, colwcharval);
+						STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
 						break;
 					default:
 						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, coltype);
 						exit(-1);
 					}
 				}
-				resultjson.append(currentrecord);
+				result_json.append(current_record);
 			}
 		}
 	}
 Exit:
-	if (hStmt != NULL) {
-		SQLFreeStmt(hStmt, SQL_CLOSE);
-		hStmt = NULL;
+	if (hstmt != NULL) {
+		SQLFreeStmt(hstmt, SQL_CLOSE);
+		hstmt = NULL;
 	}
-	return resultjson;
+	return result_json;
 }
 
 bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr) {
-	bool issucceeded = false;
+	bool is_succeeded = false;
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc));
-	issucceeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
+	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
 Exit:
-	return issucceeded;
+	return is_succeeded;
 }
 
 bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt) {
-	bool issucceeded = false;
+	bool is_succeeded = false;
 	// Free ODBC handles and exit
 	if (hStmt != NULL) {
 		SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
@@ -165,49 +165,49 @@ bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt) {
 		hEnv = NULL;
 	}
 	if (hDbc != NULL) {
-		issucceeded = SQL_SUCCEEDED(SQLDisconnect(hDbc));
+		is_succeeded = SQL_SUCCEEDED(SQLDisconnect(hDbc));
 		SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
 		hDbc = NULL;
 	}
-	return issucceeded;
+	return is_succeeded;
 }
 
 bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
-	bool issucceeded = false;
-	SQLSMALLINT snumresults;
-	SQLHSTMT hStmt = NULL;
-	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
-	WCHAR fwszInput[SQL_QUERY_SIZE];
+	bool is_succeeded = false;
+	SQLSMALLINT snum_results;
+	SQLHSTMT hstmt = NULL;
+	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hstmt));
+	WCHAR fwszinput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
-	_vsnwprintf_s(fwszInput, SQL_QUERY_SIZE, wszInput, args);
+	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	if (sqlfExec(hStmt, hDbc, fwszInput)) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLNumResultCols(hStmt, &snumresults));
-		if (snumresults > 0) {
-			printResults(hStmt, snumresults);
-			issucceeded = true;
+	if (sqlfExec(hstmt, hDbc, fwszinput)) {
+		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
+		if (snum_results > 0) {
+			printResults(hstmt, snum_results);
+			is_succeeded = true;
 		}
 	}
 Exit:
-	if (hStmt != NULL) {
-		SQLFreeStmt(hStmt, SQL_CLOSE);
-		hStmt = NULL;
+	if (hstmt != NULL) {
+		SQLFreeStmt(hstmt, SQL_CLOSE);
+		hstmt = NULL;
 	}
-	return issucceeded;
+	return is_succeeded;
 }
 
 void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
-	BINDING* pFirstBinding, * pThisBinding;
-	SQLSMALLINT     cDisplaySize;
-	RETCODE         RetCode = SQL_SUCCESS;
-	int             iCount = 0;
+	BINDING* p_first_binding, * p_this_binding;
+	SQLSMALLINT     c_display_size;
+	RETCODE         retcode = SQL_SUCCESS;
+	int             icount = 0;
 
 	// Allocate memory for each column
-	AllocateBindings(hStmt, cCols, &pFirstBinding, &cDisplaySize);
+	AllocateBindings(hStmt, cCols, &p_first_binding, &c_display_size);
 
 	// Set the display mode and write the titles
-	printTitles(hStmt, cDisplaySize + 1, pFirstBinding);
+	printTitles(hStmt, c_display_size + 1, p_first_binding);
 
 	// Fetch and display the data
 	bool fNoData = false;
@@ -215,15 +215,15 @@ void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
 	do {
 		// Fetch a row
 
-		if (iCount++ >= GHeight - 2) {
+		if (icount++ >= g_height - 2) {
 			int     nInputChar;
 			bool    fEnterReceived = false;
 
 			while (!fEnterReceived) {
 				wprintf(L"              ");
-				SetConsole(cDisplaySize + 2, TRUE);
-				wprintf(L"   Press ENTER to continue, Q to quit (height:%hd)", GHeight);
-				SetConsole(cDisplaySize + 2, FALSE);
+				SetConsole(c_display_size + 2, TRUE);
+				wprintf(L"   Press ENTER to continue, Q to quit (height:%hd)", g_height);
+				SetConsole(c_display_size + 2, FALSE);
 
 				nInputChar = _getch();
 				wprintf(L"\n");
@@ -235,30 +235,30 @@ void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
 				}
 				// else loop back to display prompt again
 			}
-			iCount = 1;
-			printTitles(hStmt, cDisplaySize + 1, pFirstBinding);
+			icount = 1;
+			printTitles(hStmt, c_display_size + 1, p_first_binding);
 		}
 
-		TRYODBC(hStmt, SQL_HANDLE_STMT, RetCode = SQLFetch(hStmt));
+		TRYODBC(hStmt, SQL_HANDLE_STMT, retcode = SQLFetch(hStmt));
 
-		if (RetCode == SQL_NO_DATA_FOUND) {
+		if (retcode == SQL_NO_DATA_FOUND) {
 			fNoData = true;
 		}
 		else {
 			// Display the data.   Ignore truncations
-			for (pThisBinding = pFirstBinding; pThisBinding; pThisBinding = pThisBinding->sNext) {
-				if (pThisBinding->indPtr != SQL_NULL_DATA) {
-					wprintf(pThisBinding->fChar ? DISPLAY_FORMAT_C : DISPLAY_FORMAT,
+			for (p_this_binding = p_first_binding; p_this_binding; p_this_binding = p_this_binding->sNext) {
+				if (p_this_binding->indPtr != SQL_NULL_DATA) {
+					wprintf(p_this_binding->fChar ? DISPLAY_FORMAT_C : DISPLAY_FORMAT,
 						PIPE,
-						pThisBinding->cDisplaySize,
-						pThisBinding->cDisplaySize,
-						pThisBinding->wszBuffer);
+						p_this_binding->cDisplaySize,
+						p_this_binding->cDisplaySize,
+						p_this_binding->wszBuffer);
 				}
 				else {
 					wprintf(DISPLAY_FORMAT_C,
 						PIPE,
-						pThisBinding->cDisplaySize,
-						pThisBinding->cDisplaySize,
+						p_this_binding->cDisplaySize,
+						p_this_binding->cDisplaySize,
 						L"<NULL>");
 				}
 			}
@@ -266,72 +266,72 @@ void printResults(HSTMT hStmt, SQLSMALLINT cCols) {
 		}
 	} while (!fNoData);
 
-	SetConsole(cDisplaySize + 2, TRUE);
-	wprintf(L"%*.*s", cDisplaySize + 2, cDisplaySize + 2, L" ");
-	SetConsole(cDisplaySize + 2, FALSE);
+	SetConsole(c_display_size + 2, TRUE);
+	wprintf(L"%*.*s", c_display_size + 2, c_display_size + 2, L" ");
+	SetConsole(c_display_size + 2, FALSE);
 	wprintf(L"\n");
 
 Exit:
 	// Clean up the allocated buffers
-	while (pFirstBinding) {
-		pThisBinding = pFirstBinding->sNext;
-		free(pFirstBinding->wszBuffer);
-		free(pFirstBinding);
-		pFirstBinding = pThisBinding;
+	while (p_first_binding) {
+		p_this_binding = p_first_binding->sNext;
+		free(p_first_binding->wszBuffer);
+		free(p_first_binding);
+		p_first_binding = p_this_binding;
 	}
 }
 
 void AllocateBindings(HSTMT hStmt, SQLSMALLINT cCols, BINDING** ppBinding, SQLSMALLINT* pDisplay) {
-	SQLSMALLINT     iCol;
-	BINDING* pThisBinding, * pLastBinding = NULL;
-	SQLLEN          cchDisplay, ssType;
-	SQLSMALLINT     cchColumnNameLength;
+	SQLSMALLINT     icol;
+	BINDING* p_this_binding, * p_last_binding = NULL;
+	SQLLEN          cch_display, sstype;
+	SQLSMALLINT     cch_column_name_length;
 
 	*pDisplay = 0;
-	for (iCol = 1; iCol <= cCols; iCol++) {
-		pThisBinding = (BINDING*)(malloc(sizeof(BINDING)));
-		if (!(pThisBinding)) {
+	for (icol = 1; icol <= cCols; icol++) {
+		p_this_binding = (BINDING*)(malloc(sizeof(BINDING)));
+		if (!(p_this_binding)) {
 			fwprintf(stderr, L"Out of memory!\n");
 			exit(-100);
 		}
-		if (iCol == 1) {
-			*ppBinding = pThisBinding;
+		if (icol == 1) {
+			*ppBinding = p_this_binding;
 		}
 		else {
-			pLastBinding->sNext = pThisBinding;
+			p_last_binding->sNext = p_this_binding;
 		}
-		pLastBinding = pThisBinding;
+		p_last_binding = p_this_binding;
 
 
 		// Figure out the display length of the column 
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, iCol, SQL_DESC_DISPLAY_SIZE, NULL, 0, NULL, &cchDisplay));
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, iCol, SQL_DESC_CONCISE_TYPE, NULL, 0, NULL, &ssType));
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, icol, SQL_DESC_DISPLAY_SIZE, NULL, 0, NULL, &cch_display));
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, icol, SQL_DESC_CONCISE_TYPE, NULL, 0, NULL, &sstype));
 
-		pThisBinding->fChar = (ssType == SQL_CHAR || ssType == SQL_VARCHAR || ssType == SQL_LONGVARCHAR);
-		pThisBinding->sNext = NULL;
+		p_this_binding->fChar = (sstype == SQL_CHAR || sstype == SQL_VARCHAR || sstype == SQL_LONGVARCHAR);
+		p_this_binding->sNext = NULL;
 
 		// Arbitrary limit on display size
-		if (cchDisplay > DISPLAY_MAX) cchDisplay = DISPLAY_MAX;
+		if (cch_display > DISPLAY_MAX) cch_display = DISPLAY_MAX;
 
 		// Allocate a buffer big enough to hold the text representation of the data.  Add one character for the null terminator
-		pThisBinding->wszBuffer = (WCHAR*)malloc((cchDisplay + 1) * sizeof(WCHAR));
-		if (!(pThisBinding->wszBuffer)) {
+		p_this_binding->wszBuffer = (WCHAR*)malloc((cch_display + 1) * sizeof(WCHAR));
+		if (!(p_this_binding->wszBuffer)) {
 			fwprintf(stderr, L"Out of memory!\n");
 			exit(-100);
 		}
 
 		// Map this buffer to the driver's buffer.   At Fetch time,
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLBindCol(hStmt, iCol, SQL_C_TCHAR, (SQLPOINTER)pThisBinding->wszBuffer, (cchDisplay + 1) * sizeof(WCHAR), &pThisBinding->indPtr));
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLBindCol(hStmt, icol, SQL_C_TCHAR, (SQLPOINTER)p_this_binding->wszBuffer, (cch_display + 1) * sizeof(WCHAR), &p_this_binding->indPtr));
 
 		// Now set the display size that we will use to display the data. Figure out the length of the column name
 
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, iCol, SQL_DESC_NAME, NULL, 0, &cchColumnNameLength, NULL));
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, icol, SQL_DESC_NAME, NULL, 0, &cch_column_name_length, NULL));
 
-		pThisBinding->cDisplaySize = max((SQLSMALLINT)cchDisplay, cchColumnNameLength);
-		if (pThisBinding->cDisplaySize < NULL_SIZE)
-			pThisBinding->cDisplaySize = NULL_SIZE;
+		p_this_binding->cDisplaySize = max((SQLSMALLINT)cch_display, cch_column_name_length);
+		if (p_this_binding->cDisplaySize < NULL_SIZE)
+			p_this_binding->cDisplaySize = NULL_SIZE;
 
-		*pDisplay += pThisBinding->cDisplaySize + DISPLAY_FORMAT_EXTRA;
+		*pDisplay += p_this_binding->cDisplaySize + DISPLAY_FORMAT_EXTRA;
 	}
 	return;
 
@@ -341,13 +341,13 @@ Exit:
 }
 
 void printTitles(HSTMT hStmt, DWORD cDisplaySize, BINDING* pBinding) {
-	WCHAR           wszTitle[DISPLAY_MAX];
-	SQLSMALLINT     iCol = 1;
+	WCHAR           wsztitle[DISPLAY_MAX];
+	SQLSMALLINT     icol = 1;
 
 	SetConsole(cDisplaySize + 2, TRUE);
 	for (; pBinding; pBinding = pBinding->sNext) {
-		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, iCol++, SQL_DESC_NAME, wszTitle, sizeof(wszTitle), NULL, NULL));
-		wprintf(DISPLAY_FORMAT_C, PIPE, pBinding->cDisplaySize, pBinding->cDisplaySize, wszTitle);
+		TRYODBC(hStmt, SQL_HANDLE_STMT, SQLColAttribute(hStmt, icol++, SQL_DESC_NAME, wsztitle, sizeof(wsztitle), NULL, NULL));
+		wprintf(DISPLAY_FORMAT_C, PIPE, pBinding->cDisplaySize, pBinding->cDisplaySize, wsztitle);
 	}
 
 Exit:
@@ -358,26 +358,26 @@ Exit:
 }
 
 void SetConsole(DWORD dwDisplaySize, BOOL fInvert) {
-	HANDLE                          hConsole;
-	CONSOLE_SCREEN_BUFFER_INFO      csbInfo;
+	HANDLE                          hconsole;
+	CONSOLE_SCREEN_BUFFER_INFO      csb_info;
 
 	// Reset the console screen buffer size if necessary
-	hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-	if (hConsole != INVALID_HANDLE_VALUE) {
-		if (GetConsoleScreenBufferInfo(hConsole, &csbInfo)) {
-			if (csbInfo.dwSize.X < (SHORT)dwDisplaySize) {
-				csbInfo.dwSize.X = (SHORT)dwDisplaySize;
-				SetConsoleScreenBufferSize(hConsole, csbInfo.dwSize);
+	if (hconsole != INVALID_HANDLE_VALUE) {
+		if (GetConsoleScreenBufferInfo(hconsole, &csb_info)) {
+			if (csb_info.dwSize.X < (SHORT)dwDisplaySize) {
+				csb_info.dwSize.X = (SHORT)dwDisplaySize;
+				SetConsoleScreenBufferSize(hconsole, csb_info.dwSize);
 			}
-			GHeight = csbInfo.dwSize.Y;
+			g_height = csb_info.dwSize.Y;
 		}
 
 		if (fInvert) {
-			SetConsoleTextAttribute(hConsole, (WORD)(csbInfo.wAttributes | BACKGROUND_BLUE));
+			SetConsoleTextAttribute(hconsole, (WORD)(csb_info.wAttributes | BACKGROUND_BLUE));
 		}
 		else {
-			SetConsoleTextAttribute(hConsole, (WORD)(csbInfo.wAttributes & ~(BACKGROUND_BLUE)));
+			SetConsoleTextAttribute(hconsole, (WORD)(csb_info.wAttributes & ~(BACKGROUND_BLUE)));
 		}
 	}
 }
