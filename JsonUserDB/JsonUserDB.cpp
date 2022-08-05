@@ -65,18 +65,22 @@ const int ERROR_PRINT_TABLES = 10;
 const int ERROR_TABLE_NOT_EXSIT = 11;
 const int ERROR_PRINT_TABLE = 12;
 
-std::wstring g_accout_uid_field_name;
-
 // ini FILE
 const WCHAR* DEFALUT_EMPTY_VAL = L"";
 const WCHAR* DEFAULT_TRRUSTED_CONNECTION_VAL = L"No";
 const WCHAR* INI_FILE_NAME = L".\\JsonUserDB.ini";
 
+//global variation
+std::wstring g_accout_uid_field_name;
 int g_standard_log_severity_lv;
 
-class LOG {
+class Log {
 public:
-	LOG(int severityLv, std::wstring msg) {
+	Log() {
+		this->severity_lv = LOG_OFF;
+		this->msg = L"";
+	}
+	Log(int severityLv, std::wstring msg) {
 		this->severity_lv = severityLv;
 		this->msg = msg;
 	}
@@ -108,7 +112,7 @@ private:
 
 bool checkJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tableNameList) {
 	if (root == NULL) {
-		LOG(LOG_ERROR, L"Failed to check current table name cause root is NULL").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to check current table name cause root is NULL").printMsgAccordingToStandard();
 		return false;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
@@ -117,7 +121,7 @@ bool checkJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> 
 		if (current_tablename.compare(g_accout_uid_field_name) == 0)
 			continue;
 		if (!(std::find(tableNameList.begin(), tableNameList.end(), current_tablename) != tableNameList.end())) {
-			LOG(LOG_ERROR, L"Failed to find current table name in table name list").printMsgAccordingToStandard();
+			Log(LOG_ERROR, L"Failed to find current table name in table name list").printMsgAccordingToStandard();
 			return false;
 		}
 	}
@@ -128,7 +132,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
 	if (root == NULL) {
-		LOG(LOG_ERROR, L"Failed to import json cause root is null").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to import json cause root is null").printMsgAccordingToStandard();
 		return is_succeeded;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
@@ -162,7 +166,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 				}
 				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
 				if (!is_succeeded) {
-					LOG(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
+					Log(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
 					goto Exit;
 				}
 				TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
@@ -180,7 +184,7 @@ Exit:
 
 bool exportJsonFromDB(std::vector<std::wstring> tableNameList, std::wstring accountUid, SQLHDBC hDbc, Json::Value& root) {
 	if (root == NULL) {
-		LOG(LOG_ERROR, L"Failed to export JSON cause root is NULL").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to export JSON cause root is NULL").printMsgAccordingToStandard();
 		return false;
 	}
 	root[get_utf8(g_accout_uid_field_name)] = get_utf8(accountUid);
@@ -211,20 +215,20 @@ bool writeJsonFile(Json::Value root, std::wstring fileName) {
 	output_config = writer.write(root);
 	file_err = _wfopen_s(&json_file, fileName.c_str(), L"wb");
 	if (file_err != 0) {
-		LOG(LOG_ERROR, L"Failed to create JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to create JSON file").printMsgAccordingToStandard();
 		return false;
 	}
 	size_t written_file_size = fwrite(output_config.c_str(), 1, output_config.length(), json_file);
 	if (written_file_size != output_config.length()) {
-		LOG(LOG_ERROR, L"Failed to write JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to write JSON file").printMsgAccordingToStandard();
 		return false;
 	}
 	if (ferror(json_file)) {
-		LOG(LOG_ERROR, L"Failed to set stream").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to set stream").printMsgAccordingToStandard();
 		return false;
 	}
 	if (fclose(json_file) != 0) {
-		LOG(LOG_ERROR, L"Failed to close JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to close JSON file").printMsgAccordingToStandard();
 		return false;
 	}
 	return true;
@@ -237,7 +241,7 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 	ifs.open(fileName);
 	if (ifs.good()) {
 		if (parseFromStream(builder, ifs, &root, &errs)) {
-			LOG(LOG_ERROR, get_utf16(errs)).printMsgAccordingToStandard();
+			Log(LOG_ERROR, get_utf16(errs)).printMsgAccordingToStandard();
 			return true;
 		}
 	}
@@ -247,7 +251,7 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstring accountUid) {
 	SQLHSTMT hstmt = NULL;
 	if (!sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str(), tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str())) {
-		LOG(LOG_ERROR, L"Failed to delete account data from table").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to delete account data from table").printMsgAccordingToStandard();
 		return false;
 	}
 	if (hstmt != NULL) {
@@ -256,16 +260,6 @@ bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstri
 	}
 	return true;
 }
-
-//bool isUidInTables(SQLHDBC hDbc, std::wstring accountUid, std::vector<std::wstring> tableNameList) {
-//	for (int tableidx = 0; tableidx < tableNameList.size(); tableidx++) {
-//		std::vector<std::wstring> accountuidlist = sqlfSingleCol(hDbc, L"SELECT %s FROM %s WHERE %s = %s", ACCOUNT_UID_FIELD_NAME.c_str(), tableNameList[tableidx].c_str(), ACCOUNT_UID_FIELD_NAME.c_str(), accountUid.c_str());
-//		if (!accountuidlist.empty()) {
-//			return true;
-//		}
-//	}
-//	return false;
-//}
 
 int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	int return_val = SUCCESS;
@@ -377,13 +371,12 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	g_accout_uid_field_name = std::wstring(accout_uid_field);
 	GetPrivateProfileString(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL, ignore_table_names, val_bufsize, INI_FILE_NAME);
 	wstignore_table_names = std::wstring(ignore_table_names);
-	WCHAR* pwc;
+	WCHAR* pwcignore_table_name;
 	WCHAR* pt;
-	pwc = wcstok_s(ignore_table_names, L",", &pt);
-	while (pwc != NULL)
-	{
-		exclusion_table_name_list.push_back(std::wstring(pwc));
-		pwc = wcstok_s(NULL, L",", &pt);
+	pwcignore_table_name = wcstok_s(ignore_table_names, L",", &pt);
+	while (pwcignore_table_name != NULL){
+		exclusion_table_name_list.push_back(std::wstring(pwcignore_table_name));
+		pwcignore_table_name = wcstok_s(NULL, L",", &pt);
 	}
 
 	// Connect DB
