@@ -20,7 +20,7 @@ bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	va_end(args);
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
 	if (g_verbose) {
-		fwprintf(stderr, L"\n%s", fwszinput);
+		fwprintf(stdout, L"\n%s", fwszinput);
 	}
 	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszinput, SQL_NTS))) {
 		is_succeeded = true;
@@ -82,15 +82,15 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 				for (colnum = 1; colnum <= snum_results; colnum++) {
 					const SQLSMALLINT buflen = 8000;
 					SQLWCHAR colname[buflen];
-					SQLSMALLINT coltype;
-					TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, colnum, colname, buflen, NULL, &coltype, NULL, NULL, NULL););
+					SQLSMALLINT col_type;
+					TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, colnum, colname, buflen, NULL, &col_type, NULL, NULL, NULL););
 					SQLLEN indicator;
 					int col_Int_val;
 					bool col_bit_val;
 					float col_float_val;
 					double col_double_val;
 					SQLWCHAR col_wchar_val[buflen];
-					switch (coltype) {
+					switch (col_type) {
 					case SQL_INTEGER:
 					case SQL_TINYINT:
 					case SQL_SMALLINT:
@@ -105,24 +105,25 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_BIT:
 						STORE_RECORD(SQL_BIT, col_bit_val);
 						break;
-					case SQL_UNICODE:
-					case SQL_CHAR:
-					case SQL_BIGINT:
 					case SQL_BINARY:
 					case SQL_VARBINARY:
+					case SQL_BIGINT:
+					case SQL_CHAR:
 					case SQL_VARCHAR:
-					case SQL_DATE:
-					case SQL_TIME:
-					case SQL_TYPE_TIMESTAMP:
-					case SQL_TYPE_TIME:
-					case SQL_TYPE_DATE:
-					case SQL_TIMESTAMP:
-					case SQL_WVARCHAR:
 					case SQL_DECIMAL:
-						STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
+					case SQL_NUMERIC:
+					case SQL_WCHAR:
+					case SQL_WVARCHAR:
+					case SQL_DATE:
+					case SQL_TYPE_DATE:
+					case SQL_TIME:
+					case SQL_TYPE_TIME:
+					case SQL_TIMESTAMP:
+					case SQL_TYPE_TIMESTAMP:
+						STORE_RECORD_STR(SQL_WCHAR, col_wchar_val);
 						break;
 					default:
-						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, coltype);
+						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, col_type);
 						exit(-1);
 					}
 				}

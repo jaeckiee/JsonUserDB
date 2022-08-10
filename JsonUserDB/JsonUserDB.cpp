@@ -44,6 +44,28 @@
 						goto Exit;\
 						}
 
+static std::unordered_map<std::wstring, SQLSMALLINT> COLUMN_DATA_TYPE({ {L"int", SQL_INTEGER},\
+																	{L"tinyint", SQL_TINYINT},\
+																	{L"smallint", SQL_SMALLINT},\
+																	{L"float", SQL_FLOAT},\
+																	{L"double", SQL_DOUBLE},\
+																	{L"bit", SQL_BIT},\
+																	{L"binary", SQL_BINARY},\
+																	{L"varbinary", SQL_VARBINARY},\
+																	{L"bigint", SQL_BIGINT},\
+																	{L"char", SQL_CHAR},\
+																	{L"varchar", SQL_VARCHAR},\
+																	{L"decimal", SQL_DECIMAL},\
+																	{L"numeric", SQL_NUMERIC}, \
+																	{L"nchar", SQL_WCHAR},\
+																	{L"nvarchar", SQL_WVARCHAR},\
+																	{L"date", SQL_DATE},\
+																	{L"time", SQL_TIME},\
+																	{L"timestamp", SQL_TIMESTAMP},\
+																	{L"smalldatetime", SQL_TIMESTAMP},\
+																	{L"datetime", SQL_TIMESTAMP},\
+																	{L"datetime2", SQL_TIMESTAMP}});
+
 // Usages Of Argparse
 static const WCHAR* const USAGES[] = {
 	L"" APP_NAME " [options] [[--] args]",
@@ -118,29 +140,56 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 					Json::String json_colname = current_row_iter.key().asCString();
 					std::wstring colname = get_utf16(json_colname);
 					std::wstring data_type = hm_col_infos[colname].first;
-					if (data_type.compare(L"int") == 0 || data_type.compare(L"tinyint") == 0 || data_type.compare(L"smallint") == 0) {
+					SQLSMALLINT col_type = COLUMN_DATA_TYPE[data_type];
+					switch (col_type) {
+					case SQL_INTEGER:
+					case SQL_TINYINT:
+					case SQL_SMALLINT: {
 						int val = current_row[json_colname].asInt();
 						insert_model.insert(colname, val);
+						break;
 					}
-					else if (data_type.compare(L"float") == 0) {
+					case SQL_FLOAT: {
 						float val = current_row[json_colname].asFloat();
 						insert_model.insert(colname, val);
+						break;
 					}
-					else if (data_type.compare(L"double") == 0) {
+					case SQL_DOUBLE: {
 						double val = current_row[json_colname].asDouble();
 						insert_model.insert(colname, val);
+						break;
 					}
-					else if (data_type.compare(L"bit") == 0) {
+					case SQL_BIT: {
 						bool val = current_row[json_colname].asBool();
 						insert_model.insert(colname, val);
+						break;
 					}
-					else if (data_type.compare(L"binary") == 0 || data_type.compare(L"varbinary") == 0) {
+					case SQL_BINARY:
+					case SQL_VARBINARY: {
 						std::wstring val = get_utf16(current_row[json_colname].asString());
 						insert_model.insertBinaryType(colname, val);
+						break;
 					}
-					else {
+					case SQL_BIGINT:
+					case SQL_CHAR:
+					case SQL_VARCHAR:
+					case SQL_DECIMAL:
+					case SQL_NUMERIC:
+					case SQL_WCHAR:
+					case SQL_WVARCHAR:
+					case SQL_DATE:
+					case SQL_TYPE_DATE:
+					case SQL_TIME:
+					case SQL_TYPE_TIME:
+					case SQL_TIMESTAMP:
+					case SQL_TYPE_TIMESTAMP: {
 						std::wstring val = get_utf16(current_row[json_colname].asString());
 						insert_model.insert(colname, val);
+						break;
+					}
+					default:
+						Log(LOG_ERROR, L"Unsupported data type");
+						goto Exit;
 					}
 				}
 				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
