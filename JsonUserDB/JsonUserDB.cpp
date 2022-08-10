@@ -20,6 +20,7 @@
 #include "sqlbuilder.h"
 #include <cassert>
 #include <sstream>
+#include <unordered_map>
 
 #define APP_NAME "JsonUserDB"
 
@@ -128,6 +129,60 @@ bool checkJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> 
 	return true;
 }
 
+//bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
+//	bool is_succeeded = false;
+//	SQLHSTMT hstmt = NULL;
+//	if (root == NULL) {
+//		Log(LOG_ERROR, L"Failed to import json cause root is null").printMsgAccordingToStandard();
+//		return is_succeeded;
+//	}
+//	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
+//		Json::Value current_key = iter.key();
+//		std::wstring current_tablename = get_utf16(current_key.asString());
+//		if (current_tablename.compare(g_accout_uid_field_name) != 0) {
+//			Json::Value current_table = root[get_utf8(current_tablename)];
+//			Json::Value col_infos = sqlfMultiCol(hDbc, current_tablename, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_tablename.c_str());
+//			for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
+//				sqlbuilder::InsertModel insert_model;
+//				Json::Value current_row = current_table[rowidx];
+//				if (current_row.size() <= 0)
+//					continue;
+//				insert_model.insert(g_accout_uid_field_name, accountUid).into(current_tablename);
+//				for (Json::Value::const_iterator current_row_iter = current_row.begin(); current_row_iter != current_row.end(); current_row_iter++) {
+//					Json::String json_colname = current_row_iter.key().asCString();
+//					std::wstring colname = get_utf16(json_colname);
+//					std::wstring val = get_utf16(current_row[json_colname].asString());
+//					for (const Json::Value& col_info : col_infos){
+//						if (col_info["COLUMN_NAME"].asString() == json_colname){
+//							if (col_info["DATA_TYPE"].asString() == "binary") {
+//								insert_model.insertBinaryType(colname, val);
+//								break;
+//							}
+//							else {
+//								insert_model.insert(colname, val);
+//								break;
+//							}
+//						}
+//					}
+//				}
+//				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
+//				if (!is_succeeded) {
+//					Log(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
+//					goto Exit;
+//				}
+//				TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
+//				hstmt = NULL;
+//			}
+//		}
+//	}
+//Exit:
+//	if (hstmt != NULL) {
+//		SQLFreeStmt(hstmt, SQL_CLOSE);
+//		hstmt = NULL;
+//	}
+//	return is_succeeded;
+//}
+
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
@@ -141,6 +196,12 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 		if (current_tablename.compare(g_accout_uid_field_name) != 0) {
 			Json::Value current_table = root[get_utf8(current_tablename)];
 			Json::Value col_infos = sqlfMultiCol(hDbc, current_tablename, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_tablename.c_str());
+			std::unordered_map<std::wstring, std::pair<std::wstring, std::wstring>> hm_col_infos;
+			for (const Json::Value& col_info : col_infos) {
+				if (col_info.size() <= 0)
+					continue;
+				hm_col_infos[get_utf16(col_info["COLUMN_NAME"].asString())] = std::make_pair(get_utf16(col_info["DATA_TYPE"].asString()), get_utf16(col_info["CHARACTER_MAXIMUM_LENGTH"].asString()));
+			}
 			for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
 				sqlbuilder::InsertModel insert_model;
 				Json::Value current_row = current_table[rowidx];
@@ -150,23 +211,36 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 				for (Json::Value::const_iterator current_row_iter = current_row.begin(); current_row_iter != current_row.end(); current_row_iter++) {
 					Json::String json_colname = current_row_iter.key().asCString();
 					std::wstring colname = get_utf16(json_colname);
-					std::wstring val = get_utf16(current_row[json_colname].asString());
-					for (const Json::Value& col_info : col_infos){
-						if (col_info["COLUMN_NAME"].asString() == json_colname){
-							if (col_info["DATA_TYPE"].asString() == "binary") {
-								insert_model.insertBinaryType(colname, val);
-								break;
-							}
-							else {
-								insert_model.insert(colname, val);
-								break;
-							}
-						}
+					std::wstring data_type = hm_col_infos[colname].first;
+					if (data_type.compare(L"int") == 0 || data_type.compare(L"tinyint") == 0 || data_type.compare(L"smallint") == 0) {
+						int val = current_row[json_colname].asInt();
+						insert_model.insert(colname, val);
+					}
+					else if (data_type.compare(L"float") == 0) {
+						float val = current_row[json_colname].asFloat();
+						insert_model.insert(colname, val);
+					}
+					else if (data_type.compare(L"double") == 0) {
+						double val = current_row[json_colname].asDouble();
+						insert_model.insert(colname, val);
+					}
+					else if (data_type.compare(L"bit") == 0) {
+						bool val = current_row[json_colname].asBool();
+						insert_model.insert(colname, val);
+					}
+					else if (data_type.compare(L"binary") == 0 || data_type.compare(L"varbinary") == 0) {
+						std::wstring val = get_utf16(current_row[json_colname].asString());
+						insert_model.insertBinaryType(colname, val);
+					}
+					else {
+						std::wstring val = get_utf16(current_row[json_colname].asString());
+						insert_model.insert(colname, val);
 					}
 				}
 				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
 				if (!is_succeeded) {
 					Log(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
+					fwprintf(stderr, L"FAIL : %s\n", current_tablename.c_str());
 					goto Exit;
 				}
 				TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));

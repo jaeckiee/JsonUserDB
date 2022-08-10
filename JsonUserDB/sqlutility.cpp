@@ -80,27 +80,21 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 				SQLUSMALLINT colnum;
 				Json::Value current_record;
 				for (colnum = 1; colnum <= snum_results; colnum++) {
-					const SQLSMALLINT buflen = 2048;
+					const SQLSMALLINT buflen = 8000;
 					SQLWCHAR colname[buflen];
 					SQLSMALLINT coltype;
 					TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, colnum, colname, buflen, NULL, &coltype, NULL, NULL, NULL););
 					SQLLEN indicator;
 					int col_Int_val;
-					char col_tinyint_val;
-					short col_smallint_val;
 					bool col_bit_val;
 					float col_float_val;
 					double col_double_val;
 					SQLWCHAR col_wchar_val[buflen];
 					switch (coltype) {
 					case SQL_INTEGER:
-						STORE_RECORD(SQL_INTEGER, col_Int_val);
-						break;
 					case SQL_TINYINT:
-						STORE_RECORD(SQL_TINYINT, col_tinyint_val);
-						break;
 					case SQL_SMALLINT:
-						STORE_RECORD(SQL_SMALLINT, col_smallint_val);
+						STORE_RECORD(SQL_INTEGER, col_Int_val);
 						break;
 					case SQL_FLOAT:
 						STORE_RECORD(SQL_FLOAT, col_float_val);
@@ -115,8 +109,9 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_CHAR:
 					case SQL_BIGINT:
 					case SQL_BINARY:
-					case SQL_VARCHAR:
+					case SQL_VARBINARY:
 					case SQL_LONGVARBINARY:
+					case SQL_VARCHAR:
 					case SQL_DATE:
 					case SQL_TIME:
 					case SQL_TYPE_TIMESTAMP:
@@ -124,6 +119,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_TYPE_DATE:
 					case SQL_TIMESTAMP:
 					case SQL_WVARCHAR:
+					case SQL_DECIMAL:
 						STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
 						break;
 					default:
