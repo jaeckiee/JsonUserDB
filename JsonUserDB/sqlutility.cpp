@@ -110,7 +110,6 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_BIGINT:
 					case SQL_BINARY:
 					case SQL_VARBINARY:
-					case SQL_LONGVARBINARY:
 					case SQL_VARCHAR:
 					case SQL_DATE:
 					case SQL_TIME:

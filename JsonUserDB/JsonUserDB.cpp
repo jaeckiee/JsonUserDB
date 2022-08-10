@@ -24,14 +24,14 @@
 
 #define APP_NAME "JsonUserDB"
 
-#define LOG_OFF 0
-#define LOG_FATAL 1
-#define LOG_ERROR 2
-#define LOG_WARN 3
-#define LOG_INFO 4
-#define LOG_DEBUG 5
-#define LOG_TRACE 6
-#define LOG_ALL 7
+#define LOG_OFF		0
+#define LOG_FATAL	1
+#define LOG_ERROR	2
+#define LOG_WARN	3
+#define LOG_INFO	4
+#define LOG_DEBUG	5
+#define LOG_TRACE	6
+#define LOG_ALL		7
 
 #define SUCCEEDED_CHECK(w, x, y) 		\
 						fwprintf(stdout, L"START : %s\n", y);\
@@ -73,121 +73,27 @@ const WCHAR* INI_FILE_NAME = L".\\JsonUserDB.ini";
 
 //global variation
 std::wstring g_accout_uid_field_name;
-int g_standard_log_severity_lv;
+int g_standard_log_severity_lv = LOG_ALL;
 
-class Log {
-public:
-	Log() {
-		this->severity_lv = LOG_OFF;
-		this->msg = L"";
-	}
-	Log(int severityLv, std::wstring msg) {
-		this->severity_lv = severityLv;
-		this->msg = msg;
-	}
-	void setSeverityLV(int severityLv) {
-		this->severity_lv = severityLv;
-	}
-	void setContent(std::wstring content) {
-		this->msg = content;
-	}
-	int getSeverityLV() {
-		return this->severity_lv;
-	}
-	std::wstring getContent() {
-		return this->msg;
-	}
-	void printMsg() {
-		fwprintf(stderr, L"%s\n", this->msg.c_str());
-	}
-	void printMsgAccordingToStandard() {
-		if (this->severity_lv <= g_standard_log_severity_lv) {
-			printMsg();
-		}
-	}
-private:
-	int severity_lv;
-	std::wstring msg;
-};
+void Log(int severityLv, std::wstring msg) {
+	if (severityLv > g_standard_log_severity_lv)
+		return;
+	fwprintf((severityLv > LOG_ERROR) ? stdout : stderr, L"%s\n", msg.c_str());
+}
 
-
-bool checkJsonTableNamseInTableList(Json::Value root, std::vector<std::wstring> tableNameList) {
-	if (root == NULL) {
-		Log(LOG_ERROR, L"Failed to check current table name cause root is NULL").printMsgAccordingToStandard();
+bool checkJsonTableNameInTableList(std::wstring currentTableName, std::vector<std::wstring> tableNameList) {
+	if (!(std::find(tableNameList.begin(), tableNameList.end(), currentTableName) != tableNameList.end())) {
+		Log(LOG_ERROR, L"Failed to find current table name in table name list");
 		return false;
-	}
-	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
-		Json::Value current_key = iter.key();
-		std::wstring current_tablename = get_utf16(current_key.asString());
-		if (current_tablename.compare(g_accout_uid_field_name) == 0)
-			continue;
-		if (!(std::find(tableNameList.begin(), tableNameList.end(), current_tablename) != tableNameList.end())) {
-			Log(LOG_ERROR, L"Failed to find current table name in table name list").printMsgAccordingToStandard();
-			return false;
-		}
 	}
 	return true;
 }
-
-//bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
-//	bool is_succeeded = false;
-//	SQLHSTMT hstmt = NULL;
-//	if (root == NULL) {
-//		Log(LOG_ERROR, L"Failed to import json cause root is null").printMsgAccordingToStandard();
-//		return is_succeeded;
-//	}
-//	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
-//		Json::Value current_key = iter.key();
-//		std::wstring current_tablename = get_utf16(current_key.asString());
-//		if (current_tablename.compare(g_accout_uid_field_name) != 0) {
-//			Json::Value current_table = root[get_utf8(current_tablename)];
-//			Json::Value col_infos = sqlfMultiCol(hDbc, current_tablename, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_tablename.c_str());
-//			for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
-//				sqlbuilder::InsertModel insert_model;
-//				Json::Value current_row = current_table[rowidx];
-//				if (current_row.size() <= 0)
-//					continue;
-//				insert_model.insert(g_accout_uid_field_name, accountUid).into(current_tablename);
-//				for (Json::Value::const_iterator current_row_iter = current_row.begin(); current_row_iter != current_row.end(); current_row_iter++) {
-//					Json::String json_colname = current_row_iter.key().asCString();
-//					std::wstring colname = get_utf16(json_colname);
-//					std::wstring val = get_utf16(current_row[json_colname].asString());
-//					for (const Json::Value& col_info : col_infos){
-//						if (col_info["COLUMN_NAME"].asString() == json_colname){
-//							if (col_info["DATA_TYPE"].asString() == "binary") {
-//								insert_model.insertBinaryType(colname, val);
-//								break;
-//							}
-//							else {
-//								insert_model.insert(colname, val);
-//								break;
-//							}
-//						}
-//					}
-//				}
-//				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
-//				if (!is_succeeded) {
-//					Log(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
-//					goto Exit;
-//				}
-//				TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
-//				hstmt = NULL;
-//			}
-//		}
-//	}
-//Exit:
-//	if (hstmt != NULL) {
-//		SQLFreeStmt(hstmt, SQL_CLOSE);
-//		hstmt = NULL;
-//	}
-//	return is_succeeded;
-//}
 
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
 	if (root == NULL) {
-		Log(LOG_ERROR, L"Failed to import json cause root is null").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to import json cause root is null");
 		return is_succeeded;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
@@ -239,7 +145,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 				}
 				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
 				if (!is_succeeded) {
-					Log(LOG_ERROR, L"Failed to insert values in DB").printMsgAccordingToStandard();
+					Log(LOG_ERROR, L"Failed to insert values in DB");
 					fwprintf(stderr, L"FAIL : %s\n", current_tablename.c_str());
 					goto Exit;
 				}
@@ -258,7 +164,7 @@ Exit:
 
 bool exportJsonFromDB(std::vector<std::wstring> tableNameList, std::wstring accountUid, SQLHDBC hDbc, Json::Value& root) {
 	if (root == NULL) {
-		Log(LOG_ERROR, L"Failed to export JSON cause root is NULL").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to export JSON cause root is NULL");
 		return false;
 	}
 	root[get_utf8(g_accout_uid_field_name)] = get_utf8(accountUid);
@@ -289,20 +195,20 @@ bool writeJsonFile(Json::Value root, std::wstring fileName) {
 	output_config = writer.write(root);
 	file_err = _wfopen_s(&json_file, fileName.c_str(), L"wb");
 	if (file_err != 0) {
-		Log(LOG_ERROR, L"Failed to create JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to create JSON file");
 		return false;
 	}
 	size_t written_file_size = fwrite(output_config.c_str(), 1, output_config.length(), json_file);
 	if (written_file_size != output_config.length()) {
-		Log(LOG_ERROR, L"Failed to write JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to write JSON file");
 		return false;
 	}
 	if (ferror(json_file)) {
-		Log(LOG_ERROR, L"Failed to set stream").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to set stream");
 		return false;
 	}
 	if (fclose(json_file) != 0) {
-		Log(LOG_ERROR, L"Failed to close JSON file").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to close JSON file");
 		return false;
 	}
 	return true;
@@ -315,7 +221,7 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 	ifs.open(fileName);
 	if (ifs.good()) {
 		if (parseFromStream(builder, ifs, &root, &errs)) {
-			Log(LOG_ERROR, get_utf16(errs)).printMsgAccordingToStandard();
+			Log(LOG_ERROR, get_utf16(errs));
 			return true;
 		}
 	}
@@ -325,7 +231,7 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstring accountUid) {
 	SQLHSTMT hstmt = NULL;
 	if (!sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str(), tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str())) {
-		Log(LOG_ERROR, L"Failed to delete account data from table").printMsgAccordingToStandard();
+		Log(LOG_ERROR, L"Failed to delete account data from table");
 		return false;
 	}
 	if (hstmt != NULL) {
@@ -335,148 +241,149 @@ bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstri
 	return true;
 }
 
+std::wstring getValFromINIFile(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
+	const int val_bufsize = 1024;
+	WCHAR val_buf[val_bufsize];
+	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_bufsize, INI_FILE_NAME);
+	return std::wstring(val_buf);
+}
+
 int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	int return_val = SUCCESS;
 	SQLHENV henv = NULL;
 	SQLHDBC hdbc = NULL;
-	SQLHSTMT hStmt = NULL;
-	std::vector<std::wstring> accountuid_list;
+	SQLHSTMT hstmt = NULL;
 	std::vector<std::wstring> uid_exist_tablename_list;
 	std::vector<std::wstring> exclusion_table_name_list;
 	Json::Value root;
 	const WCHAR* accountuid = NULL;
 	const WCHAR* source = NULL;
 	const WCHAR* target = NULL;
-	const WCHAR* connsection = NULL;
-	const WCHAR* connstring = NULL;
+	const WCHAR* conn_section = NULL;
+	const WCHAR* conn_string = NULL;
 	setlocale(LC_ALL, "en-US.UTF-8");
 
 	// ARGOARSE SET
-	int exportjson = 0;
-	int importjson = 0;
-	int deleterows = 0;
-	int printtables = 0;
+	int export_json = 0;
+	int import_json = 0;
+	int delete_rows = 0;
+	int print_tables = 0;
 	int verbose = 0;
+
+	// CONFIG SECTION
+	g_standard_log_severity_lv = GetPrivateProfileInt(L"CONFIG", L"LOG_STANDARD_SEVERITY_LEVEL", LOG_ALL, INI_FILE_NAME);
+	g_accout_uid_field_name = getValFromINIFile(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL);
+	std::wstring exclusion_table_names = getValFromINIFile(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL);
+	std::wstring temp;
+	std::wstringstream wss(exclusion_table_names);
+	while (std::getline(wss, temp, L','))
+		exclusion_table_name_list.push_back(temp);
 
 	// Argparse
 	struct argparse_option options[] = {
 		OPT_HELP(),
 		OPT_GROUP(L"Basic options"),
-		OPT_BOOLEAN(L'e', L"export", &exportjson, L"Export JSON File From DB", NULL, 0, 0),
-		OPT_BOOLEAN(L'i', L"import", &importjson, L"Import JSON File Into DB", NULL, 0, 0),
-		OPT_BOOLEAN(L'd', L"delete", &deleterows, L"Delete Rows(Same AccounUID Exists) of DB", NULL, 0, 0),
-		OPT_BOOLEAN(L'p', L"print", &printtables, L"Print all columns From Tables Where Same AccountUID Exists ", NULL, 0, 0),
-		OPT_STRING(L's', L"source", &source, L"Source DB connectionstring or Source jsonfile name", NULL, 0, 0),
-		OPT_STRING(L't', L"target", &target, L"Target jsonfile name or Target DB connectionstring", NULL, 0, 0),
-		OPT_STRING(L'c', L"connect", &connsection, L"Section Name in ini File for Connecttion to DB", NULL, 0, 0),
-		OPT_STRING(L'u', L"uid", &accountuid, L"Target AccountUID", NULL, 0, 0),
+		OPT_BOOLEAN(L'e', L"export", &export_json, L"Export JSON file from DB", NULL, 0, 0),
+		OPT_BOOLEAN(L'i', L"import", &import_json, L"Import JSON file into DB", NULL, 0, 0),
+		OPT_BOOLEAN(L'd', L"delete", &delete_rows, L"Delete rows(same accounUID exists) of DB", NULL, 0, 0),
+		OPT_BOOLEAN(L'p', L"print", &print_tables, L"Print all columns from tables where same accountUID exists ", NULL, 0, 0),
+		OPT_STRING(L's', L"source", &source, L"Source DB connection string or source JSON file name", NULL, 0, 0),
+		OPT_STRING(L't', L"target", &target, L"Target JSON file name or target DB connection string", NULL, 0, 0),
+		OPT_STRING(L'c', L"connect", &conn_section, L"Section name in INI file for connection to DB", NULL, 0, 0),
+		OPT_STRING(L'u', L"uid", &accountuid, L"Target accountUID", NULL, 0, 0),
 		OPT_BOOLEAN(L'v', L"verbosse", &verbose, L"Provides additional details", NULL, 0, 0),
 		OPT_END(),
 	};
 
 	struct argparse argparse;
 	argparse_init(&argparse, options, USAGES, 0);
-	argparse_describe(&argparse, L"This program supports Export and Import JSON FILE From or To DB.\n", L"ex) -e -u 100000000 -s connecttionstring -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -t connecttionstring\nex) -d -u 100000000 -t connecttionstring\nex) -p -u 100000000 -t connecttionstring\nex) -e -u 100000000 -c connectsection -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -c connectsection\nex) -d -u 100000000 -c connectsection\nex) -p -u 100000000 -c connectsection\n");
+	argparse_describe(&argparse, L"This program supports export and import JSON file from or to DB.\n", L"ex) -e -u 100000000 -s connecttionstring -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -t connecttionstring\nex) -d -u 100000000 -t connecttionstring\nex) -p -u 100000000 -t connecttionstring\nex) -e -u 100000000 -c connectsection -t jsonfilename\nex) -i -u 100000000 -s jsonfilename -c connectsection\nex) -d -u 100000000 -c connectsection\nex) -p -u 100000000 -c connectsection\n");
 	argparse_parse(&argparse, argc, argv);
 	if (argc < 2) {
 		argparse_usage(&argparse);
 		return SUCCESS;
 	}
 	if (accountuid == NULL) {
-		fwprintf(stderr, L"Invalid argument\n");
+		Log(LOG_ERROR, L"Target accountUID is needed");
 		return ERROR_BAD_ARG;
 	}
 	if (verbose != 0) {
 		g_verbose = verbose;
 	}
-	if (exportjson == 1) {
-		if (target == NULL || ((source == NULL) == (connsection == NULL))) {
-			fwprintf(stderr, L"Invalid argument\n");
+	if (export_json == 1) {
+		if (target == NULL || ((source == NULL) == (conn_section == NULL))) {
+			Log(LOG_ERROR, L"Invalid argument");
 			return ERROR_BAD_ARG;
 		}
 	}
-	if (importjson == 1) {
-		if (source == NULL || ((target == NULL) == (connsection == NULL))) {
-			fwprintf(stderr, L"Invalid argument\n");
+	if (import_json == 1) {
+		if (source == NULL || ((target == NULL) == (conn_section == NULL))) {
+			Log(LOG_ERROR, L"Invalid argument");
 			return ERROR_BAD_ARG;
 		}
 	}
 
 	// Mode Choice
-	if (exportjson + importjson + deleterows + printtables != 1) {
-		fwprintf(stderr, L"This mode is not supported\n");
+	if (export_json + import_json + delete_rows + print_tables != 1) {
+		Log(LOG_ERROR, L"This mode is not supported");
 		return ERROR_BAD_ARG;
 	}
 
 	// Using Connectionstring OR ConnectSection
-	if (connsection == NULL) {
-		if (exportjson == 1) {
-			connstring = source;
+	if (conn_section == NULL) {
+		if (export_json == 1) {
+			conn_string = source;
 		}
 		else {
-			connstring = target;
+			conn_string = target;
 		}
 	}
 	else {
 		const int wcsbufsize = 1024;
 		WCHAR wcsbuf[wcsbufsize];
-		const int val_bufsize = 1024;
-		WCHAR val_dsn_buf[val_bufsize];
-		WCHAR val_database_buf[val_bufsize];
-		WCHAR val_trusted_connection_buf[val_bufsize];
-		WCHAR val_uid_buf[val_bufsize];
-		WCHAR val_pwd_buf[val_bufsize];
-		GetPrivateProfileString(connsection, L"DSN", DEFALUT_EMPTY_VAL, val_dsn_buf, val_bufsize, INI_FILE_NAME);
-		GetPrivateProfileString(connsection, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL, val_trusted_connection_buf, val_bufsize, INI_FILE_NAME);
-		GetPrivateProfileString(connsection, L"UID", DEFALUT_EMPTY_VAL, val_uid_buf, val_bufsize, INI_FILE_NAME);
-		GetPrivateProfileString(connsection, L"PWD", DEFALUT_EMPTY_VAL, val_pwd_buf, val_bufsize, INI_FILE_NAME);
-		GetPrivateProfileString(connsection, L"Database", DEFALUT_EMPTY_VAL, val_database_buf, val_bufsize, INI_FILE_NAME);
-		swprintf_s(wcsbuf, wcsbufsize, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn_buf, val_trusted_connection_buf, val_uid_buf, val_pwd_buf, val_database_buf);
-		connstring = wcsbuf;
-	}
-
-	// CONFIG SECTION
-	const int val_bufsize = 1024;
-	std::wstring wstignore_table_names;
-	WCHAR accout_uid_field[val_bufsize];
-	WCHAR ignore_table_names[val_bufsize];
-	g_standard_log_severity_lv = GetPrivateProfileInt(L"CONFIG", L"LOG_STANDARD_SEVERITY_LEVEL", LOG_OFF, INI_FILE_NAME);
-	GetPrivateProfileString(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL, accout_uid_field, val_bufsize, INI_FILE_NAME);
-	g_accout_uid_field_name = std::wstring(accout_uid_field);
-	GetPrivateProfileString(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL, ignore_table_names, val_bufsize, INI_FILE_NAME);
-	wstignore_table_names = std::wstring(ignore_table_names);
-	WCHAR* pwcignore_table_name;
-	WCHAR* pt;
-	pwcignore_table_name = wcstok_s(ignore_table_names, L",", &pt);
-	while (pwcignore_table_name != NULL){
-		exclusion_table_name_list.push_back(std::wstring(pwcignore_table_name));
-		pwcignore_table_name = wcstok_s(NULL, L",", &pt);
+		std::wstring val_dsn = getValFromINIFile(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
+		std::wstring val_trusted_connection = getValFromINIFile(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
+		std::wstring val_uid = getValFromINIFile(conn_section, L"UID", DEFALUT_EMPTY_VAL);
+		std::wstring val_pwd = getValFromINIFile(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
+		std::wstring val_database = getValFromINIFile(conn_section, L"Database", DEFALUT_EMPTY_VAL);
+		swprintf_s(wcsbuf, wcsbufsize, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn.c_str(), val_trusted_connection.c_str(), val_uid.c_str(), val_pwd.c_str(), val_database.c_str());
+		conn_string = wcsbuf;
 	}
 
 	// Connect DB
-	SUCCEEDED_CHECK(connectToDB(henv, hdbc, connstring), ERROR_CONNECT_DB, L"Connecting DB");
+	SUCCEEDED_CHECK(connectToDB(henv, hdbc, conn_string), ERROR_CONNECT_DB, L"Connecting DB");
 
 	uid_exist_tablename_list = getSubtractedWstrList(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
         INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accout_uid_field_name.c_str()), exclusion_table_name_list);
 
-	if (exportjson == 1) {
+	if (export_json == 1) {
 		SUCCEEDED_CHECK(exportJsonFromDB(uid_exist_tablename_list, accountuid, hdbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
 
 		SUCCEEDED_CHECK(writeJsonFile(root, target), ERROR_WRITING_FILE, L"Writing JSON file");
 	}
-	else if (importjson == 1) {
+	else if (import_json == 1) {
 		SUCCEEDED_CHECK(readJsonFile(root, source), ERROR_READING_FILE, L"Reading JSON file");
 
-		SUCCEEDED_CHECK(checkJsonTableNamseInTableList(root, uid_exist_tablename_list), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in DB");
+		if (root == NULL) {
+			Log(LOG_ERROR, L"Failed to check current table name cause root is NULL");
+			return false;
+		}
+		for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
+			Json::Value current_key = iter.key();
+			std::wstring current_tablename = get_utf16(current_key.asString());
+			if (current_tablename.compare(g_accout_uid_field_name) == 0)
+				continue;
+			SUCCEEDED_CHECK(checkJsonTableNameInTableList(current_tablename, uid_exist_tablename_list), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
+		}
 
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid), ERROR_READING_FILE, L"Importing Json into DB");
 	}
-	else if (deleterows == 1) {
+	else if (delete_rows == 1) {
 		for (int tableidx = 0; tableidx < uid_exist_tablename_list.size(); tableidx++) {
 			SUCCEEDED_CHECK(deleteAccountDataFromTable(hdbc, uid_exist_tablename_list[tableidx], accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
 		}
 	}
-	else if (printtables == 1) {
+	else if (print_tables == 1) {
 		for (int tableidx = 0; tableidx < uid_exist_tablename_list.size(); tableidx++) {
 			std::wstring current_tablename = uid_exist_tablename_list[tableidx];
 			fwprintf(stdout, L"TABLE NAME : %s\n", current_tablename.c_str());
@@ -484,7 +391,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 	}
 Exit:
-	if (!disconnectDB(henv, hdbc, hStmt)) {
+	if (!disconnectDB(henv, hdbc, hstmt)) {
 		fwprintf(stderr, L"Failed : Disconnecting DB\n");
 		return ERROR_DISCONNECT_DB;
 	}
