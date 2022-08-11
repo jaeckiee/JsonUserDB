@@ -45,10 +45,10 @@ typedef struct STR_BINDING {
 
 // For SQL Execute
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
-Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
 
 // Return Result Of Query
-std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
+std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
+Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
 
 // Connect And Diconnect DB
 bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr);

@@ -9,6 +9,7 @@
 #include <wchar.h>
 #include "sqlutility.h"
 #include "strutility.h"
+#include <unordered_set>
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	bool is_succeeded = false;
@@ -32,10 +33,10 @@ Exit:
 	return is_succeeded;
 }
 
-std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
-	std::vector<std::wstring> row_val_list;
+	std::unordered_set<std::wstring> row_val_set;
 	WCHAR fwszinput[SQL_QUERY_SIZE];
 	va_list args;
 	va_start(args, wszInput);
@@ -51,7 +52,7 @@ std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...
 				WCHAR buf[bufsize];
 				if (SQL_SUCCEEDED(SQLGetData(hstmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
 					if (indicator != SQL_NULL_DATA) {
-						row_val_list.push_back(buf);
+						row_val_set.insert(buf);
 					}
 				}
 			}
@@ -61,7 +62,7 @@ Exit:
 	if (hstmt != SQL_CLOSE) {
 		SQLFreeStmt(hstmt, SQL_CLOSE);
 	}
-	return row_val_list;
+	return row_val_set;
 }
 
 Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {

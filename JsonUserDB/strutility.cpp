@@ -19,9 +19,9 @@ std::wstring get_utf16(const std::string& str) {
 	return res;
 }
 
-std::vector<std::wstring> getSubtractedWstrList(std::vector<std::wstring> subtractedWstrList, std::vector<std::wstring> subtractingWstrList) {
-	for (int tableidx = 0; tableidx < subtractingWstrList.size(); tableidx++) {
-		subtractedWstrList.erase(std::remove(subtractedWstrList.begin(), subtractedWstrList.end(), subtractingWstrList[tableidx]), subtractedWstrList.end());
+std::unordered_set<std::wstring> getDiffSet(std::unordered_set<std::wstring> subtractedSet, std::unordered_set<std::wstring> subtractingSet) {
+	for (const std::wstring elem : subtractingSet) {
+		subtractedSet.erase(elem);
 	}
-	return subtractedWstrList;
+	return subtractedSet;
 }

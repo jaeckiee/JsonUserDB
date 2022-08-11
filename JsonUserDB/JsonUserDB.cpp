@@ -21,6 +21,7 @@
 #include <cassert>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #define APP_NAME "JsonUserDB"
 
@@ -103,8 +104,8 @@ void Log(int severityLv, std::wstring msg) {
 	fwprintf((severityLv > LOG_ERROR) ? stdout : stderr, L"%s\n", msg.c_str());
 }
 
-bool checkJsonTableNameInTableList(std::wstring currentTableName, std::vector<std::wstring> tableNameList) {
-	if (!(std::find(tableNameList.begin(), tableNameList.end(), currentTableName) != tableNameList.end())) {
+bool checkJsonTableNameInTableList(std::wstring currentTableName, std::unordered_set<std::wstring> tableNameSet) {
+	if (tableNameSet.find(currentTableName) == tableNameSet.end()){
 		Log(LOG_ERROR, L"Failed to find current table name in table name list");
 		return false;
 	}
@@ -208,26 +209,23 @@ Exit:
 	return is_succeeded;
 }
 
-bool exportJsonFromDB(std::vector<std::wstring> tableNameList, std::wstring accountUid, SQLHDBC hDbc, Json::Value& root) {
+bool exportJsonFromDB(std::unordered_set<std::wstring> tableNameSet, std::wstring accountUid, SQLHDBC hDbc, Json::Value& root) {
 	if (root == NULL) {
 		Log(LOG_ERROR, L"Failed to export JSON cause root is NULL");
 		return false;
 	}
 	root[get_utf8(g_accout_uid_field_name)] = get_utf8(accountUid);
-	for (int tableidx = 0; tableidx < tableNameList.size(); tableidx++) {
-		std::wstring current_tablename = tableNameList[tableidx];
-		std::vector<std::wstring> auto_colname_list;
+	for (const std::wstring current_table_name : tableNameSet) {
 		Json::Value current_table;
-		auto_colname_list = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '%s'", current_tablename.c_str());
-		current_table = sqlfMultiCol(hDbc, current_tablename, L"SELECT * FROM %s WHERE %s = %s", current_tablename.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
+		std::unordered_set<std::wstring> auto_colname_set = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '%s'", current_table_name.c_str());
+		current_table = sqlfMultiCol(hDbc, current_table_name, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
 		for (int rowidx = 0; rowidx < (int) current_table.size(); rowidx++) {
 			current_table[rowidx].removeMember(get_utf8(g_accout_uid_field_name));
-			for (int autoincidx = 0; autoincidx < auto_colname_list.size(); autoincidx++) {
-				current_table[rowidx].removeMember(get_utf8(auto_colname_list[autoincidx]));
-			}
+			for (const std::wstring auto_colname : auto_colname_set)
+				current_table[rowidx].removeMember(get_utf8((auto_colname)));
 		}
 		if (!current_table.empty()) {
-			root[get_utf8(current_tablename)] = current_table;
+			root[get_utf8(current_table_name)] = current_table;
 		}
 	}
 	return true;
@@ -299,8 +297,8 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	SQLHENV henv = NULL;
 	SQLHDBC hdbc = NULL;
 	SQLHSTMT hstmt = NULL;
-	std::vector<std::wstring> uid_exist_tablename_list;
-	std::vector<std::wstring> exclusion_table_name_list;
+	std::unordered_set<std::wstring> uid_exist_table_name_set;
+	std::unordered_set<std::wstring> exclusion_table_name_set;
 	Json::Value root;
 	const WCHAR* accountuid = NULL;
 	const WCHAR* source = NULL;
@@ -323,7 +321,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	std::wstring temp;
 	std::wstringstream wss(exclusion_table_names);
 	while (std::getline(wss, temp, L','))
-		exclusion_table_name_list.push_back(temp);
+		exclusion_table_name_set.insert(temp);
 
 	// Argparse
 	struct argparse_option options[] = {
@@ -399,11 +397,11 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	// Connect DB
 	SUCCEEDED_CHECK(connectToDB(henv, hdbc, conn_string), ERROR_CONNECT_DB, L"Connecting DB");
 
-	uid_exist_tablename_list = getSubtractedWstrList(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
-        INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accout_uid_field_name.c_str()), exclusion_table_name_list);
+	uid_exist_table_name_set = getDiffSet(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
+        INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accout_uid_field_name.c_str()), exclusion_table_name_set);
 
 	if (export_json == 1) {
-		SUCCEEDED_CHECK(exportJsonFromDB(uid_exist_tablename_list, accountuid, hdbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
+		SUCCEEDED_CHECK(exportJsonFromDB(uid_exist_table_name_set, accountuid, hdbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
 
 		SUCCEEDED_CHECK(writeJsonFile(root, target), ERROR_WRITING_FILE, L"Writing JSON file");
 	}
@@ -416,24 +414,23 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 		for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 			Json::Value current_key = iter.key();
-			std::wstring current_tablename = current_key.asWstring();
-			if (current_tablename.compare(g_accout_uid_field_name) == 0)
+			std::wstring current_table_name = current_key.asWstring();
+			if (current_table_name.compare(g_accout_uid_field_name) == 0)
 				continue;
-			SUCCEEDED_CHECK(checkJsonTableNameInTableList(current_tablename, uid_exist_tablename_list), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
+			SUCCEEDED_CHECK(checkJsonTableNameInTableList(current_table_name, uid_exist_table_name_set), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
 		}
 
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid), ERROR_READING_FILE, L"Importing Json into DB");
 	}
 	else if (delete_rows == 1) {
-		for (int tableidx = 0; tableidx < uid_exist_tablename_list.size(); tableidx++) {
-			SUCCEEDED_CHECK(deleteAccountDataFromTable(hdbc, uid_exist_tablename_list[tableidx], accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
+		for (const std::wstring current_table_name : uid_exist_table_name_set) {
+			SUCCEEDED_CHECK(deleteAccountDataFromTable(hdbc, current_table_name, accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
 		}
 	}
 	else if (print_tables == 1) {
-		for (int tableidx = 0; tableidx < uid_exist_tablename_list.size(); tableidx++) {
-			std::wstring current_tablename = uid_exist_tablename_list[tableidx];
-			fwprintf(stdout, L"TABLE NAME : %s\n", current_tablename.c_str());
-			SUCCEEDED_CHECK(printTable(hdbc, L"SELECT * FROM %s WHERE %s = %s", current_tablename.c_str(), g_accout_uid_field_name.c_str(), accountuid), ERROR_PRINT_TABLE, L"Printing tables");
+		for (const std::wstring current_table_name : uid_exist_table_name_set) {
+			fwprintf(stdout, L"TABLE NAME : %s\n", current_table_name.c_str());
+			SUCCEEDED_CHECK(printTable(hdbc, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountuid), ERROR_PRINT_TABLE, L"Printing tables");
 		}
 	}
 Exit:
