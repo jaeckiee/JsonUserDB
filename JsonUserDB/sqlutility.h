@@ -25,12 +25,12 @@
 #define PIPE                L'|'
 
 #define STORE_RECORD(x, y) 		\
-						SQLGetData(hstmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colname)] = y;
+						SQLGetData(hstmt, col_num, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = y;
 
 #define STORE_RECORD_STR(x, y)		\
-						SQLGetData(hstmt, colnum, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) current_record[get_utf8(colname)] = get_utf8(y);
+						SQLGetData(hstmt, col_num, x, &y, sizeof(y), &indicator); \
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(y);
 
 static SHORT g_height = 80;
 static int g_verbose = 0;

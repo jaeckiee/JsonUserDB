@@ -45,7 +45,7 @@
 						goto Exit;\
 						}
 
-static std::unordered_map<std::wstring, SQLSMALLINT> COLUMN_DATA_TYPE({ {L"int", SQL_INTEGER},\
+static std::unordered_map<std::wstring, int> COLUMN_DATA_TYPE({ {L"int", SQL_INTEGER},\
 																	{L"tinyint", SQL_TINYINT},\
 																	{L"smallint", SQL_SMALLINT},\
 																	{L"float", SQL_FLOAT},\
@@ -104,7 +104,7 @@ void Log(int severityLv, std::wstring msg) {
 	fwprintf((severityLv > LOG_ERROR) ? stdout : stderr, L"%s\n", msg.c_str());
 }
 
-bool checkJsonTableNameInTableList(std::wstring currentTableName, std::unordered_set<std::wstring> tableNameSet) {
+bool checkTableNameInTableNameSet(std::wstring currentTableName, std::unordered_set<std::wstring> tableNameSet) {
 	if (tableNameSet.find(currentTableName) == tableNameSet.end()){
 		Log(LOG_ERROR, L"Failed to find current table name in table name list");
 		return false;
@@ -119,89 +119,107 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 		Log(LOG_ERROR, L"Failed to import json cause root is null");
 		return is_succeeded;
 	}
+	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {
+		Log(LOG_ERROR, L"Failed to autocommit off");
+		return is_succeeded;
+	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 		Json::Value current_key = iter.key();
-		std::wstring current_tablename = current_key.asWstring();
-		if (current_tablename.compare(g_accout_uid_field_name) != 0) {
-			Json::Value current_table = root[get_utf8(current_tablename)];
-			Json::Value col_infos = sqlfMultiCol(hDbc, current_tablename, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_tablename.c_str());
-			std::unordered_map<std::wstring, std::pair<std::wstring, std::wstring>> hm_col_infos;
-			for (const Json::Value& col_info : col_infos) {
-				if (col_info.size() <= 0)
-					continue;
-				hm_col_infos[col_info["COLUMN_NAME"].asWstring()] = std::make_pair(col_info["DATA_TYPE"].asWstring(), col_info["CHARACTER_MAXIMUM_LENGTH"].asWstring());
-			}
-			for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
-				sqlbuilder::InsertModel insert_model;
-				Json::Value current_row = current_table[rowidx];
-				if (current_row.size() <= 0)
-					continue;
-				insert_model.insert(g_accout_uid_field_name, accountUid).into(current_tablename);
-				for (Json::Value::const_iterator current_row_iter = current_row.begin(); current_row_iter != current_row.end(); current_row_iter++) {
-					Json::String json_colname = current_row_iter.key().asCString();
-					std::wstring colname = get_utf16(json_colname);
-					std::wstring data_type = hm_col_infos[colname].first;
-					SQLSMALLINT col_type = COLUMN_DATA_TYPE[data_type];
-					switch (col_type) {
-					case SQL_INTEGER:
-					case SQL_TINYINT:
-					case SQL_SMALLINT: {
-						int val = current_row[json_colname].asInt();
-						insert_model.insert(colname, val);
-						break;
-					}
-					case SQL_FLOAT: {
-						float val = current_row[json_colname].asFloat();
-						insert_model.insert(colname, val);
-						break;
-					}
-					case SQL_DOUBLE: {
-						double val = current_row[json_colname].asDouble();
-						insert_model.insert(colname, val);
-						break;
-					}
-					case SQL_BIT: {
-						bool val = current_row[json_colname].asBool();
-						insert_model.insert(colname, val);
-						break;
-					}
-					case SQL_BINARY:
-					case SQL_VARBINARY: {
-						std::wstring val = current_row[json_colname].asWstring();
-						insert_model.insertBinaryType(colname, val);
-						break;
-					}
-					case SQL_BIGINT:
-					case SQL_CHAR:
-					case SQL_VARCHAR:
-					case SQL_DECIMAL:
-					case SQL_NUMERIC:
-					case SQL_WCHAR:
-					case SQL_WVARCHAR:
-					case SQL_DATE:
-					case SQL_TIME:
-					case SQL_TIMESTAMP: {
-						std::wstring val = current_row[json_colname].asWstring();
-						insert_model.insert(colname, val);
-						break;
-					}
-					default:
-						Log(LOG_ERROR, L"Unsupported data type");
-						goto Exit;
-					}
+		std::wstring current_table_name = current_key.asWstring();
+		if (current_table_name.compare(g_accout_uid_field_name) == 0)
+			continue;
+		Json::Value current_table = root[get_utf8(current_table_name)];
+		Json::Value col_infos = sqlfMultiCol(hDbc, current_table_name, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_table_name.c_str());
+		std::unordered_map<std::wstring, std::pair<std::wstring, std::wstring>> hm_col_infos;
+		for (const Json::Value& col_info : col_infos) {
+			if (col_info.size() <= 0)
+				continue;
+			hm_col_infos[col_info["COLUMN_NAME"].asWstring()] = std::make_pair(col_info["DATA_TYPE"].asWstring(), col_info["CHARACTER_MAXIMUM_LENGTH"].asWstring());
+		}
+		for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
+			sqlbuilder::InsertModel insert_model;
+			Json::Value current_row = current_table[rowidx];
+			if (current_row.size() <= 0)
+				continue;
+			insert_model.insert(g_accout_uid_field_name, accountUid).into(current_table_name);
+			for (Json::Value::const_iterator current_row_iter = current_row.begin(); current_row_iter != current_row.end(); current_row_iter++) {
+				Json::String json_col_name = current_row_iter.key().asCString();
+				std::wstring col_name = get_utf16(json_col_name);
+				std::wstring data_type = hm_col_infos[col_name].first;
+				int col_type = COLUMN_DATA_TYPE[data_type];
+				switch (col_type) {
+				case SQL_INTEGER:
+				case SQL_TINYINT:
+				case SQL_SMALLINT: {
+					int val = current_row[json_col_name].asInt();
+					insert_model.insert(col_name, val);
+					break;
 				}
-				is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
-				if (!is_succeeded) {
-					Log(LOG_ERROR, L"Failed to insert values in DB");
-					fwprintf(stderr, L"FAIL : %s\n", current_tablename.c_str());
+				case SQL_FLOAT: {
+					float val = current_row[json_col_name].asFloat();
+					insert_model.insert(col_name, val);
+					break;
+				}
+				case SQL_DOUBLE: {
+					double val = current_row[json_col_name].asDouble();
+					insert_model.insert(col_name, val);
+					break;
+				}
+				case SQL_BIT: {
+					bool val = current_row[json_col_name].asBool();
+					insert_model.insert(col_name, val);
+					break;
+				}
+				case SQL_BINARY:
+				case SQL_VARBINARY: {
+					std::wstring val = current_row[json_col_name].asWstring();
+					insert_model.insertBinaryType(col_name, val);
+					break;
+				}
+				case SQL_BIGINT:
+				case SQL_CHAR:
+				case SQL_VARCHAR:
+				case SQL_DECIMAL:
+				case SQL_NUMERIC:
+				case SQL_WCHAR:
+				case SQL_WVARCHAR:
+				case SQL_DATE:
+				case SQL_TIME:
+				case SQL_TIMESTAMP: {
+					std::wstring val = current_row[json_col_name].asWstring();
+					insert_model.insert(col_name, val);
+					break;
+				}
+				default:
+					Log(LOG_ERROR, L"Unsupported data type");
 					goto Exit;
 				}
-				TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
-				hstmt = NULL;
 			}
+			is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
+			if (!is_succeeded) {
+				Log(LOG_ERROR, L"Failed to insert values in DB");
+				goto Exit;
+			}
+			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
+			hstmt = NULL;
 		}
 	}
 Exit:
+	if (is_succeeded) {
+		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_COMMIT))) {
+			Log(LOG_ERROR, L"Failed to end transaction");
+			is_succeeded = false;
+		}
+	}
+	else {
+		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_ROLLBACK))) {
+			Log(LOG_ERROR, L"Failed to end transaction");
+		}
+	}
+	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {
+		Log(LOG_ERROR, L"Failed to autocommit on");
+		is_succeeded = false;
+	}
 	if (hstmt != NULL) {
 		SQLFreeStmt(hstmt, SQL_CLOSE);
 		hstmt = NULL;
@@ -216,13 +234,12 @@ bool exportJsonFromDB(std::unordered_set<std::wstring> tableNameSet, std::wstrin
 	}
 	root[get_utf8(g_accout_uid_field_name)] = get_utf8(accountUid);
 	for (const std::wstring current_table_name : tableNameSet) {
-		Json::Value current_table;
-		std::unordered_set<std::wstring> auto_colname_set = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '%s'", current_table_name.c_str());
-		current_table = sqlfMultiCol(hDbc, current_table_name, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
+		std::unordered_set<std::wstring> auto_col_name_set = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '%s'", current_table_name.c_str());
+		Json::Value current_table = sqlfMultiCol(hDbc, current_table_name, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
 		for (int rowidx = 0; rowidx < (int) current_table.size(); rowidx++) {
 			current_table[rowidx].removeMember(get_utf8(g_accout_uid_field_name));
-			for (const std::wstring auto_colname : auto_colname_set)
-				current_table[rowidx].removeMember(get_utf8((auto_colname)));
+			for (const std::wstring auto_col_name : auto_col_name_set)
+				current_table[rowidx].removeMember(get_utf8((auto_col_name)));
 		}
 		if (!current_table.empty()) {
 			root[get_utf8(current_table_name)] = current_table;
@@ -235,8 +252,7 @@ bool writeJsonFile(Json::Value root, std::wstring fileName) {
 	errno_t file_err;
 	FILE* json_file = NULL;
 	Json::StyledWriter writer;
-	std::string output_config;
-	output_config = writer.write(root);
+	std::string output_config = writer.write(root);
 	file_err = _wfopen_s(&json_file, fileName.c_str(), L"wb");
 	if (file_err != 0) {
 		Log(LOG_ERROR, L"Failed to create JSON file");
@@ -286,9 +302,9 @@ bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstri
 }
 
 std::wstring getValFromINIFile(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
-	const int val_bufsize = 1024;
-	WCHAR val_buf[val_bufsize];
-	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_bufsize, INI_FILE_NAME);
+	const int val_buf_size = 1024;
+	WCHAR val_buf[val_buf_size];
+	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_buf_size, INI_FILE_NAME);
 	return std::wstring(val_buf);
 }
 
@@ -383,15 +399,15 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 	}
 	else {
-		const int wcsbufsize = 1024;
-		WCHAR wcsbuf[wcsbufsize];
+		const int wcsbuf_size = 1024;
+		WCHAR wcs_buf[wcsbuf_size];
 		std::wstring val_dsn = getValFromINIFile(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
 		std::wstring val_trusted_connection = getValFromINIFile(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
 		std::wstring val_uid = getValFromINIFile(conn_section, L"UID", DEFALUT_EMPTY_VAL);
 		std::wstring val_pwd = getValFromINIFile(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
 		std::wstring val_database = getValFromINIFile(conn_section, L"Database", DEFALUT_EMPTY_VAL);
-		swprintf_s(wcsbuf, wcsbufsize, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn.c_str(), val_trusted_connection.c_str(), val_uid.c_str(), val_pwd.c_str(), val_database.c_str());
-		conn_string = wcsbuf;
+		swprintf_s(wcs_buf, wcsbuf_size, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn.c_str(), val_trusted_connection.c_str(), val_uid.c_str(), val_pwd.c_str(), val_database.c_str());
+		conn_string = wcs_buf;
 	}
 
 	// Connect DB
@@ -417,7 +433,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 			std::wstring current_table_name = current_key.asWstring();
 			if (current_table_name.compare(g_accout_uid_field_name) == 0)
 				continue;
-			SUCCEEDED_CHECK(checkJsonTableNameInTableList(current_table_name, uid_exist_table_name_set), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
+			SUCCEEDED_CHECK(checkTableNameInTableNameSet(current_table_name, uid_exist_table_name_set), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
 		}
 
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid), ERROR_READING_FILE, L"Importing Json into DB");

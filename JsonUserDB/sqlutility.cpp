@@ -42,19 +42,19 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInp
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	if (sqlfExec(hstmt, hDbc, fwszinput)) {
-		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
-		if (snum_results == 1) {
-			while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
-				SQLLEN indicator;
-				SQLSMALLINT colnum = 1;
-				const int bufsize = 512;
-				WCHAR buf[bufsize];
-				if (SQL_SUCCEEDED(SQLGetData(hstmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
-					if (indicator != SQL_NULL_DATA) {
-						row_val_set.insert(buf);
-					}
-				}
+	if (!sqlfExec(hstmt, hDbc, fwszinput))
+		goto Exit;
+	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
+	if (snum_results != 1)
+		goto Exit;
+	while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
+		SQLLEN indicator;
+		SQLSMALLINT col_num = 1;
+		const int buf_size = 512;
+		WCHAR buf[buf_size];
+		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
+			if (indicator != SQL_NULL_DATA) {
+				row_val_set.insert(buf);
 			}
 		}
 	}
@@ -74,63 +74,63 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 	va_start(args, wszInput);
 	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
 	va_end(args);
-	if (sqlfExec(hstmt, hDbc, fwszinput)) {
-		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
-		if (snum_results > 0) {
-			while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
-				SQLUSMALLINT colnum;
-				Json::Value current_record;
-				for (colnum = 1; colnum <= snum_results; colnum++) {
-					const SQLSMALLINT buflen = 8000;
-					SQLWCHAR colname[buflen];
-					SQLSMALLINT col_type;
-					TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, colnum, colname, buflen, NULL, &col_type, NULL, NULL, NULL););
-					SQLLEN indicator;
-					int col_Int_val;
-					bool col_bit_val;
-					float col_float_val;
-					double col_double_val;
-					SQLWCHAR col_wchar_val[buflen];
-					switch (col_type) {
-					case SQL_INTEGER:
-					case SQL_TINYINT:
-					case SQL_SMALLINT:
-						STORE_RECORD(SQL_INTEGER, col_Int_val);
-						break;
-					case SQL_FLOAT:
-						STORE_RECORD(SQL_FLOAT, col_float_val);
-						break;
-					case SQL_DOUBLE:
-						STORE_RECORD(SQL_DOUBLE, col_double_val);
-						break;
-					case SQL_BIT:
-						STORE_RECORD(SQL_BIT, col_bit_val);
-						break;
-					case SQL_BINARY:
-					case SQL_VARBINARY:
-					case SQL_BIGINT:
-					case SQL_CHAR:
-					case SQL_VARCHAR:
-					case SQL_DECIMAL:
-					case SQL_NUMERIC:
-					case SQL_WCHAR:
-					case SQL_WVARCHAR:
-					case SQL_DATE:
-					case SQL_TYPE_DATE:
-					case SQL_TIME:
-					case SQL_TYPE_TIME:
-					case SQL_TIMESTAMP:
-					case SQL_TYPE_TIMESTAMP:
-						STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
-						break;
-					default:
-						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, col_type);
-						exit(-1);
-					}
-				}
-				result_json.append(current_record);
+	if (!sqlfExec(hstmt, hDbc, fwszinput))
+		goto Exit;
+	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
+	if (snum_results <= 0)
+		goto Exit;
+	while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
+		SQLUSMALLINT col_num;
+		Json::Value current_record;
+		for (col_num = 1; col_num <= snum_results; col_num++) {
+			const SQLSMALLINT buf_size = 8000;
+			SQLWCHAR col_name[buf_size];
+			SQLSMALLINT col_type;
+			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, col_name, buf_size, NULL, &col_type, NULL, NULL, NULL););
+			SQLLEN indicator;
+			int col_Int_val;
+			bool col_bit_val;
+			float col_float_val;
+			double col_double_val;
+			SQLWCHAR col_wchar_val[buf_size];
+			switch (col_type) {
+			case SQL_INTEGER:
+			case SQL_TINYINT:
+			case SQL_SMALLINT:
+				STORE_RECORD(SQL_INTEGER, col_Int_val);
+				break;
+			case SQL_FLOAT:
+				STORE_RECORD(SQL_FLOAT, col_float_val);
+				break;
+			case SQL_DOUBLE:
+				STORE_RECORD(SQL_DOUBLE, col_double_val);
+				break;
+			case SQL_BIT:
+				STORE_RECORD(SQL_BIT, col_bit_val);
+				break;
+			case SQL_BINARY:
+			case SQL_VARBINARY:
+			case SQL_BIGINT:
+			case SQL_CHAR:
+			case SQL_VARCHAR:
+			case SQL_DECIMAL:
+			case SQL_NUMERIC:
+			case SQL_WCHAR:
+			case SQL_WVARCHAR:
+			case SQL_DATE:
+			case SQL_TYPE_DATE:
+			case SQL_TIME:
+			case SQL_TYPE_TIME:
+			case SQL_TIMESTAMP:
+			case SQL_TYPE_TIMESTAMP:
+				STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
+				break;
+			default:
+				fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), col_name, col_type);
+				exit(-1);
 			}
 		}
+		result_json.append(current_record);
 	}
 Exit:
 	if (hstmt != NULL) {
