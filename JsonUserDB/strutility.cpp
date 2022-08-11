@@ -19,7 +19,14 @@ std::wstring get_utf16(const std::string& str) {
 	return res;
 }
 
-std::unordered_set<std::wstring> getDiffSet(std::unordered_set<std::wstring> subtractedSet, std::unordered_set<std::wstring> subtractingSet) {
+bool checkWstrInWstrSet(std::wstring wstr, std::unordered_set<std::wstring> wstrSet) {
+	if (wstrSet.find(wstr) == wstrSet.end()) {
+		return false;
+	}
+	return true;
+}
+
+std::unordered_set<std::wstring> getDiffWstrSet(std::unordered_set<std::wstring> subtractedSet, std::unordered_set<std::wstring> subtractingSet) {
 	for (const std::wstring elem : subtractingSet) {
 		subtractedSet.erase(elem);
 	}

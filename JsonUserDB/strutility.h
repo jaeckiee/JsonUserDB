@@ -5,4 +5,6 @@ std::string get_utf8(const std::wstring& wstr);
 
 std::wstring get_utf16(const std::string& str);
 
-std::unordered_set<std::wstring> getDiffSet(std::unordered_set<std::wstring> subtractedWstrset, std::unordered_set<std::wstring> subtractingWstrset);
+bool checkWstrInWstrSet(std::wstring wstr, std::unordered_set<std::wstring> wstrSet);
+
+std::unordered_set<std::wstring> getDiffWstrSet(std::unordered_set<std::wstring> subtractedWstrset, std::unordered_set<std::wstring> subtractingWstrset);

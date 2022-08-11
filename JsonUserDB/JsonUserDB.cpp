@@ -104,14 +104,6 @@ void Log(int severityLv, std::wstring msg) {
 	fwprintf((severityLv > LOG_ERROR) ? stdout : stderr, L"%s\n", msg.c_str());
 }
 
-bool checkTableNameInTableNameSet(std::wstring currentTableName, std::unordered_set<std::wstring> tableNameSet) {
-	if (tableNameSet.find(currentTableName) == tableNameSet.end()){
-		Log(LOG_ERROR, L"Failed to find current table name in table name list");
-		return false;
-	}
-	return true;
-}
-
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, std::unordered_set<std::wstring> tableNameSet) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
@@ -128,9 +120,9 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, s
 		std::wstring current_table_name = current_key.asWstring();
 		if (current_table_name.compare(g_accout_uid_field_name) == 0)
 			continue;
-		if (!checkTableNameInTableNameSet(current_table_name, tableNameSet)) {
+		if (!checkWstrInWstrSet(current_table_name, tableNameSet)) {
 			is_succeeded = false;
-			Log(LOG_ERROR, L"Table name doesn't exist in table name set");
+			Log(LOG_ERROR, L"Failed to find current table name in table name list");
 			goto Exit;
 		}
 		Json::Value current_table = root[get_utf8(current_table_name)];
@@ -418,7 +410,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	// Connect DB
 	SUCCEEDED_CHECK(connectToDB(henv, hdbc, conn_string), ERROR_CONNECT_DB, L"Connecting DB");
 
-	uid_exist_table_name_set = getDiffSet(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
+	uid_exist_table_name_set = getDiffWstrSet(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
         INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accout_uid_field_name.c_str()), exclusion_table_name_set);
 
 	if (export_json == 1) {
