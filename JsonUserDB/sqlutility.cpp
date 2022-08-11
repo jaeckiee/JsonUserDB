@@ -45,10 +45,10 @@ std::vector<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...
 		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 		if (snum_results == 1) {
 			while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
-				SQLUSMALLINT colnum = 1;
 				SQLLEN indicator;
+				SQLSMALLINT colnum = 1;
 				const int bufsize = 512;
-				wchar_t buf[bufsize];
+				WCHAR buf[bufsize];
 				if (SQL_SUCCEEDED(SQLGetData(hstmt, colnum, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
 					if (indicator != SQL_NULL_DATA) {
 						row_val_list.push_back(buf);
@@ -120,7 +120,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 					case SQL_TYPE_TIME:
 					case SQL_TIMESTAMP:
 					case SQL_TYPE_TIMESTAMP:
-						STORE_RECORD_STR(SQL_WCHAR, col_wchar_val);
+						STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
 						break;
 					default:
 						fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), colname, col_type);

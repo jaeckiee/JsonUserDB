@@ -19,9 +19,9 @@ std::wstring get_utf16(const std::string& str) {
 	return res;
 }
 
-std::vector<std::wstring> getSubtractedWstrList(std::vector<std::wstring> subtractedWstrLiST, std::vector<std::wstring> subtractingWstrList) {
+std::vector<std::wstring> getSubtractedWstrList(std::vector<std::wstring> subtractedWstrList, std::vector<std::wstring> subtractingWstrList) {
 	for (int tableidx = 0; tableidx < subtractingWstrList.size(); tableidx++) {
-		subtractedWstrLiST.erase(std::remove(subtractedWstrLiST.begin(), subtractedWstrLiST.end(), subtractingWstrList[tableidx]), subtractedWstrLiST.end());
+		subtractedWstrList.erase(std::remove(subtractedWstrList.begin(), subtractedWstrList.end(), subtractingWstrList[tableidx]), subtractedWstrList.end());
 	}
-	return subtractedWstrLiST;
+	return subtractedWstrList;
 }

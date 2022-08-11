@@ -103,6 +103,8 @@ argparse_getvalue(struct argparse* self, const struct argparse_option* opt,
         }
         if (errno == ERANGE)
             argparse_error(self, opt, L"numerical result out of range", flags);
+        if (s == NULL) 
+            argparse_error(self, opt, L"endptr is NULL", flags);
         if (s[0] != L'\0') // no digits or contains invalid characters
             argparse_error(self, opt, L"expects an integer value", flags);
         break;
@@ -121,6 +123,8 @@ argparse_getvalue(struct argparse* self, const struct argparse_option* opt,
         }
         if (errno == ERANGE)
             argparse_error(self, opt, L"numerical result out of range", flags);
+        if (s == NULL)
+            argparse_error(self, opt, L"endptr is NULL", flags);
         if (s[0] != L'\0') // no digits or contains invalid characters
             argparse_error(self, opt, L"expects a numerical value", flags);
         break;

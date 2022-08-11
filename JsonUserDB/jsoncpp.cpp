@@ -3051,6 +3051,10 @@ bool Value::getString(char const** begin, char const** end) const {
   return true;
 }
 
+std::wstring Value::asWstring() const {
+    return get_utf16(asString());
+}
+
 String Value::asString() const {
   switch (type()) {
   case nullValue:

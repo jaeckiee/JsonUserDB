@@ -120,7 +120,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 		Json::Value current_key = iter.key();
-		std::wstring current_tablename = get_utf16(current_key.asString());
+		std::wstring current_tablename = current_key.asWstring();
 		if (current_tablename.compare(g_accout_uid_field_name) != 0) {
 			Json::Value current_table = root[get_utf8(current_tablename)];
 			Json::Value col_infos = sqlfMultiCol(hDbc, current_tablename, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_tablename.c_str());
@@ -128,7 +128,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 			for (const Json::Value& col_info : col_infos) {
 				if (col_info.size() <= 0)
 					continue;
-				hm_col_infos[get_utf16(col_info["COLUMN_NAME"].asString())] = std::make_pair(get_utf16(col_info["DATA_TYPE"].asString()), get_utf16(col_info["CHARACTER_MAXIMUM_LENGTH"].asString()));
+				hm_col_infos[col_info["COLUMN_NAME"].asWstring()] = std::make_pair(col_info["DATA_TYPE"].asWstring(), col_info["CHARACTER_MAXIMUM_LENGTH"].asWstring());
 			}
 			for (int rowidx = 0; rowidx < (int)current_table.size(); rowidx++) {
 				sqlbuilder::InsertModel insert_model;
@@ -166,7 +166,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 					}
 					case SQL_BINARY:
 					case SQL_VARBINARY: {
-						std::wstring val = get_utf16(current_row[json_colname].asString());
+						std::wstring val = current_row[json_colname].asWstring();
 						insert_model.insertBinaryType(colname, val);
 						break;
 					}
@@ -178,12 +178,9 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
 					case SQL_WCHAR:
 					case SQL_WVARCHAR:
 					case SQL_DATE:
-					case SQL_TYPE_DATE:
 					case SQL_TIME:
-					case SQL_TYPE_TIME:
-					case SQL_TIMESTAMP:
-					case SQL_TYPE_TIMESTAMP: {
-						std::wstring val = get_utf16(current_row[json_colname].asString());
+					case SQL_TIMESTAMP: {
+						std::wstring val = current_row[json_colname].asWstring();
 						insert_model.insert(colname, val);
 						break;
 					}
@@ -419,7 +416,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 		for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 			Json::Value current_key = iter.key();
-			std::wstring current_tablename = get_utf16(current_key.asString());
+			std::wstring current_tablename = current_key.asWstring();
 			if (current_tablename.compare(g_accout_uid_field_name) == 0)
 				continue;
 			SUCCEEDED_CHECK(checkJsonTableNameInTableList(current_tablename, uid_exist_tablename_list), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");

@@ -571,6 +571,7 @@ public:
 #include <memory>
 #include <string>
 #include <vector>
+#include "strutility.h"
 
 // Disable warning C4251: <data member>: <type> needs to have dll-interface to
 // be used by...
@@ -906,6 +907,7 @@ public:
                                      // the CString
 #endif
   String asString() const; ///< Embedded zeroes are possible.
+  std::wstring asWstring() const;
   /** Get raw char* of string-value.
    *  \return false if !string. (Seg-fault if str or end are NULL.)
    */
