@@ -112,22 +112,27 @@ bool checkTableNameInTableNameSet(std::wstring currentTableName, std::unordered_
 	return true;
 }
 
-bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid) {
+bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, std::unordered_set<std::wstring> tableNameSet) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
 	if (root == NULL) {
 		Log(LOG_ERROR, L"Failed to import json cause root is null");
-		return is_succeeded;
+		return false;
 	}
 	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {
 		Log(LOG_ERROR, L"Failed to autocommit off");
-		return is_succeeded;
+		return false;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
 		Json::Value current_key = iter.key();
 		std::wstring current_table_name = current_key.asWstring();
 		if (current_table_name.compare(g_accout_uid_field_name) == 0)
 			continue;
+		if (!checkTableNameInTableNameSet(current_table_name, tableNameSet)) {
+			is_succeeded = false;
+			Log(LOG_ERROR, L"Table name doesn't exist in table name set");
+			goto Exit;
+		}
 		Json::Value current_table = root[get_utf8(current_table_name)];
 		Json::Value col_infos = sqlfMultiCol(hDbc, current_table_name, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_table_name.c_str());
 		std::unordered_map<std::wstring, std::pair<std::wstring, std::wstring>> hm_col_infos;
@@ -424,19 +429,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	else if (import_json == 1) {
 		SUCCEEDED_CHECK(readJsonFile(root, source), ERROR_READING_FILE, L"Reading JSON file");
 
-		if (root == NULL) {
-			Log(LOG_ERROR, L"Failed to check current table name cause root is NULL");
-			return false;
-		}
-		for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
-			Json::Value current_key = iter.key();
-			std::wstring current_table_name = current_key.asWstring();
-			if (current_table_name.compare(g_accout_uid_field_name) == 0)
-				continue;
-			SUCCEEDED_CHECK(checkTableNameInTableNameSet(current_table_name, uid_exist_table_name_set), ERROR_TABLE_NOT_EXSIT, L"Check if table name in Json exists in TableList");
-		}
-
-		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid), ERROR_READING_FILE, L"Importing Json into DB");
+		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid, uid_exist_table_name_set), ERROR_READING_FILE, L"Importing Json into DB");
 	}
 	else if (delete_rows == 1) {
 		for (const std::wstring current_table_name : uid_exist_table_name_set) {
