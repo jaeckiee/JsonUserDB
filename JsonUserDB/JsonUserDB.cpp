@@ -285,17 +285,42 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 	return false;
 }
 
-bool deleteAccountDataFromTable(SQLHDBC hDbc, std::wstring tableName, std::wstring accountUid) {
+bool deleteAccountDataFromTables(SQLHDBC hDbc, std::unordered_set<std::wstring> uid_exist_table_name_set, std::wstring accountUid) {
 	SQLHSTMT hstmt = NULL;
-	if (!sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str(), tableName.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str())) {
-		Log(LOG_ERROR, L"Failed to delete account data from table");
+	bool is_succeeded = false;
+	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {
+		Log(LOG_ERROR, L"Failed to autocommit off");
 		return false;
+	}
+	for (const std::wstring current_table_name : uid_exist_table_name_set) {
+		is_succeeded = sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str(), current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
+		if (!is_succeeded) {
+			Log(LOG_ERROR, L"Failed to delete account data from table");
+			goto Exit;
+		}
+		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
+	}
+Exit:
+	if (is_succeeded) {
+		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_COMMIT))) {
+			Log(LOG_ERROR, L"Failed to end transaction");
+			is_succeeded = false;
+		}
+	}
+	else {
+		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_ROLLBACK))) {
+			Log(LOG_ERROR, L"Failed to end transaction");
+		}
+	}
+	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {
+		Log(LOG_ERROR, L"Failed to autocommit on");
+		is_succeeded = false;
 	}
 	if (hstmt != NULL) {
 		SQLFreeStmt(hstmt, SQL_CLOSE);
 		hstmt = NULL;
 	}
-	return true;
+	return is_succeeded;
 }
 
 std::wstring getValFromINIFile(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
@@ -424,9 +449,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid, uid_exist_table_name_set), ERROR_READING_FILE, L"Importing Json into DB");
 	}
 	else if (delete_rows == 1) {
-		for (const std::wstring current_table_name : uid_exist_table_name_set) {
-			SUCCEEDED_CHECK(deleteAccountDataFromTable(hdbc, current_table_name, accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
-		}
+		SUCCEEDED_CHECK(deleteAccountDataFromTables(hdbc, uid_exist_table_name_set, accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
 	}
 	else if (print_tables == 1) {
 		for (const std::wstring current_table_name : uid_exist_table_name_set) {
@@ -442,4 +465,3 @@ Exit:
 	fwprintf(stdout, L"SUCCESS : Disconnecting DB\n");
 	return return_val;
 }
-
