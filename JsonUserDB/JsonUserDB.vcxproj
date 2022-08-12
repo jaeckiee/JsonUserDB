@@ -134,13 +134,18 @@
     <ClCompile Include="JsonUserDB.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="logutility.cpp" />
     <ClCompile Include="sqlutility.cpp" />
     <ClCompile Include="strutility.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="argparse.h" />
+    <ClInclude Include="fmt\core.h" />
+    <ClInclude Include="fmt\format.h" />
+    <ClInclude Include="fmt\xchar.h" />
     <ClInclude Include="json\json-forwards.h" />
     <ClInclude Include="json\json.h" />
+    <ClInclude Include="logutility.h" />
     <ClInclude Include="sqlbuilder.h" />
     <ClInclude Include="sqlutility.h" />
     <ClInclude Include="strutility.h" />

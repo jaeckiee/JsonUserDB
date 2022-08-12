@@ -33,6 +33,9 @@
     <ClCompile Include="jsoncpp.cpp">
       <Filter>3rdPartyLibrary</Filter>
     </ClCompile>
+    <ClCompile Include="logutility.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="strutility.h">
@@ -51,6 +54,18 @@
       <Filter>3rdPartyLibrary</Filter>
     </ClInclude>
     <ClInclude Include="json\json-forwards.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="logutility.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="fmt\core.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="fmt\format.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="fmt\xchar.h">
       <Filter>3rdPartyLibrary</Filter>
     </ClInclude>
   </ItemGroup>

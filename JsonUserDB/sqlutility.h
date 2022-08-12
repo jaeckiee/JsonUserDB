@@ -1,5 +1,6 @@
 #pragma once
 #include "json/json.h"
+#include "logutility.h"
 
 // Macro to call ODBC functions and report an error on failure and Takes handle, handle type, and stmt
 #define TRYODBC(h, ht, x)   {   RETCODE rc = x;\
@@ -13,6 +14,8 @@
                                     goto Exit;  \
                                 }  \
                             }
+
+#define SQL_SAFE_FREESTATEMENT(h) {	if (h != NULL) { SQLFreeStmt(h, SQL_CLOSE);	h = NULL; } }
 
 // Some constants
 #define DISPLAY_MAX 50          // Arbitrary limit on column width to display

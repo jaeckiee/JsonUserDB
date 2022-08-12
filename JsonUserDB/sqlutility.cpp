@@ -7,9 +7,9 @@
 #include <vector>
 #include <string>
 #include <wchar.h>
+#include <unordered_set>
 #include "sqlutility.h"
 #include "strutility.h"
-#include <unordered_set>
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	bool is_succeeded = false;
@@ -59,9 +59,7 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInp
 		}
 	}
 Exit:
-	if (hstmt != SQL_CLOSE) {
-		SQLFreeStmt(hstmt, SQL_CLOSE);
-	}
+	SQL_SAFE_FREESTATEMENT(hstmt);
 	return row_val_set;
 }
 
@@ -126,17 +124,14 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 				STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
 				break;
 			default:
-				fwprintf(stderr, L"\nTable : %s column : %s coltype : %d", tableName.c_str(), col_name, col_type);
+				Log(LOG_FATAL, L"This column type is not supported");
 				exit(-1);
 			}
 		}
 		result_json.append(current_record);
 	}
 Exit:
-	if (hstmt != NULL) {
-		SQLFreeStmt(hstmt, SQL_CLOSE);
-		hstmt = NULL;
-	}
+	SQL_SAFE_FREESTATEMENT(hstmt);
 	return result_json;
 }
 
@@ -187,10 +182,7 @@ bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 		}
 	}
 Exit:
-	if (hstmt != NULL) {
-		SQLFreeStmt(hstmt, SQL_CLOSE);
-		hstmt = NULL;
-	}
+	SQL_SAFE_FREESTATEMENT(hstmt);
 	return is_succeeded;
 }
 

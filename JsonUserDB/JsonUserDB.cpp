@@ -22,17 +22,12 @@
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+#include "logutility.h"
+#include "fmt/core.h"
+//#include "fmt/format.h"
+//#include "fmt/xchar.h"
 
 #define APP_NAME "JsonUserDB"
-
-#define LOG_OFF		0
-#define LOG_FATAL	1
-#define LOG_ERROR	2
-#define LOG_WARN	3
-#define LOG_INFO	4
-#define LOG_DEBUG	5
-#define LOG_TRACE	6
-#define LOG_ALL		7
 
 #define SUCCEEDED_CHECK(w, x, y) 		\
 						fwprintf(stdout, L"START : %s\n", y);\
@@ -44,6 +39,49 @@
 						return_val = x;\
 						goto Exit;\
 						}
+
+#define SQL_SET_AUTOCOMMIT_OFF(h)\
+					if (!SQL_SUCCEEDED(SQLSetConnectAttr(hdbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {\
+					Log(LOG_FATAL, L"Failed to set autocommit off");\
+					exit(ERROR_FATAL);\
+					}
+
+#define SQL_END_TRANSACTION(h, i)\
+					if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, h, i ? SQL_COMMIT : SQL_ROLLBACK))) {\
+					Log(LOG_FATAL, L"Failed to end transaction");\
+					exit(ERROR_FATAL);\
+					}
+
+#define SQL_SET_AUTOCOMMIT_ON(h)\
+					if (!SQL_SUCCEEDED(SQLSetConnectAttr(hdbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {\
+					Log(LOG_FATAL, L"Failed to set autocommit on");\
+					exit(ERROR_FATAL);\
+					}
+
+// return codes
+const int ERROR_FATAL = -1;
+const int SUCCESS = 0;
+const int ERROR_BAD_ARG = 1;
+const int ERROR_READING_FILE = 2;
+const int ERROR_WRITING_FILE = 3;
+const int ERROR_ALLOCATE_ENVHANDLE = 4;
+const int ERROR_CONNECT_DB = 5;
+const int ERROR_DISCONNECT_DB = 6;
+const int ERROR_IMPORT_JSON = 7;
+const int ERROR_EXPORT_JSON = 8;
+const int ERROR_DELETE_TABLEROWS = 9;
+const int ERROR_PRINT_TABLES = 10;
+const int ERROR_TABLE_NOT_EXSIT = 11;
+const int ERROR_PRINT_TABLE = 12;
+
+// ini FILE
+const WCHAR* DEFALUT_EMPTY_VAL = L"";
+const WCHAR* DEFAULT_TRRUSTED_CONNECTION_VAL = L"No";
+const WCHAR* INI_FILE_NAME = L".\\JsonUserDB.ini";
+
+//global variation
+std::wstring g_accout_uid_field_name;
+
 
 static std::unordered_map<std::wstring, int> COLUMN_DATA_TYPE({ {L"int", SQL_INTEGER},\
 																	{L"tinyint", SQL_TINYINT},\
@@ -74,45 +112,11 @@ static const WCHAR* const USAGES[] = {
 	NULL,
 };
 
-// return codes
-const int SUCCESS = 0;
-const int ERROR_BAD_ARG = 1;
-const int ERROR_READING_FILE = 2;
-const int ERROR_WRITING_FILE = 3;
-const int ERROR_ALLOCATE_ENVHANDLE = 4;
-const int ERROR_CONNECT_DB = 5;
-const int ERROR_DISCONNECT_DB = 6;
-const int ERROR_IMPORT_JSON = 7;
-const int ERROR_EXPORT_JSON = 8;
-const int ERROR_DELETE_TABLEROWS = 9;
-const int ERROR_PRINT_TABLES = 10;
-const int ERROR_TABLE_NOT_EXSIT = 11;
-const int ERROR_PRINT_TABLE = 12;
-
-// ini FILE
-const WCHAR* DEFALUT_EMPTY_VAL = L"";
-const WCHAR* DEFAULT_TRRUSTED_CONNECTION_VAL = L"No";
-const WCHAR* INI_FILE_NAME = L".\\JsonUserDB.ini";
-
-//global variation
-std::wstring g_accout_uid_field_name;
-int g_standard_log_severity_lv = LOG_ALL;
-
-void Log(int severityLv, std::wstring msg) {
-	if (severityLv > g_standard_log_severity_lv)
-		return;
-	fwprintf((severityLv > LOG_ERROR) ? stdout : stderr, L"%s\n", msg.c_str());
-}
-
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, std::unordered_set<std::wstring> tableNameSet) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
 	if (root == NULL) {
 		Log(LOG_ERROR, L"Failed to import json cause root is null");
-		return false;
-	}
-	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {
-		Log(LOG_ERROR, L"Failed to autocommit off");
 		return false;
 	}
 	for (Json::Value::iterator iter = root.begin(); iter != root.end(); ++iter) {
@@ -202,25 +206,8 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, s
 		}
 	}
 Exit:
-	if (is_succeeded) {
-		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_COMMIT))) {
-			Log(LOG_ERROR, L"Failed to end transaction");
-			is_succeeded = false;
-		}
-	}
-	else {
-		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_ROLLBACK))) {
-			Log(LOG_ERROR, L"Failed to end transaction");
-		}
-	}
-	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {
-		Log(LOG_ERROR, L"Failed to autocommit on");
-		is_succeeded = false;
-	}
-	if (hstmt != NULL) {
-		SQLFreeStmt(hstmt, SQL_CLOSE);
-		hstmt = NULL;
-	}
+	SQL_END_TRANSACTION(hDbc, is_succeeded);
+	SQL_SAFE_FREESTATEMENT(hstmt)
 	return is_succeeded;
 }
 
@@ -288,10 +275,6 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 bool deleteAccountDataFromTables(SQLHDBC hDbc, std::unordered_set<std::wstring> uid_exist_table_name_set, std::wstring accountUid) {
 	SQLHSTMT hstmt = NULL;
 	bool is_succeeded = false;
-	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {
-		Log(LOG_ERROR, L"Failed to autocommit off");
-		return false;
-	}
 	for (const std::wstring current_table_name : uid_exist_table_name_set) {
 		is_succeeded = sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str(), current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountUid.c_str());
 		if (!is_succeeded) {
@@ -301,29 +284,12 @@ bool deleteAccountDataFromTables(SQLHDBC hDbc, std::unordered_set<std::wstring> 
 		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLFreeStmt(hstmt, SQL_CLOSE));
 	}
 Exit:
-	if (is_succeeded) {
-		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_COMMIT))) {
-			Log(LOG_ERROR, L"Failed to end transaction");
-			is_succeeded = false;
-		}
-	}
-	else {
-		if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_ROLLBACK))) {
-			Log(LOG_ERROR, L"Failed to end transaction");
-		}
-	}
-	if (!SQL_SUCCEEDED(SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {
-		Log(LOG_ERROR, L"Failed to autocommit on");
-		is_succeeded = false;
-	}
-	if (hstmt != NULL) {
-		SQLFreeStmt(hstmt, SQL_CLOSE);
-		hstmt = NULL;
-	}
+	SQL_END_TRANSACTION(hDbc, is_succeeded);
+	SQL_SAFE_FREESTATEMENT(hstmt)
 	return is_succeeded;
 }
 
-std::wstring getValFromINIFile(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
+std::wstring getINIFileWstring(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
 	const int val_buf_size = 1024;
 	WCHAR val_buf[val_buf_size];
 	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_buf_size, INI_FILE_NAME);
@@ -343,6 +309,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	const WCHAR* target = NULL;
 	const WCHAR* conn_section = NULL;
 	const WCHAR* conn_string = NULL;
+	const WCHAR* json_file_name = NULL;
 	setlocale(LC_ALL, "en-US.UTF-8");
 
 	// ARGOARSE SET
@@ -354,13 +321,11 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 
 	// CONFIG SECTION
 	g_standard_log_severity_lv = GetPrivateProfileInt(L"CONFIG", L"LOG_STANDARD_SEVERITY_LEVEL", LOG_ALL, INI_FILE_NAME);
-	g_accout_uid_field_name = getValFromINIFile(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL);
-	std::wstring exclusion_table_names = getValFromINIFile(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL);
-	std::wstring temp;
-	std::wstringstream wss(exclusion_table_names);
-	while (std::getline(wss, temp, L','))
-		exclusion_table_name_set.insert(temp);
+	g_accout_uid_field_name = getINIFileWstring(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL);
+	std::wstring exclusion_table_names = getINIFileWstring(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL);
 
+	exclusion_table_name_set = splitStr(exclusion_table_names, L',');
+	
 	// Argparse
 	struct argparse_option options[] = {
 		OPT_HELP(),
@@ -392,48 +357,47 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	if (verbose != 0) {
 		g_verbose = verbose;
 	}
-	if (export_json == 1) {
-		if (target == NULL || ((source == NULL) == (conn_section == NULL))) {
-			Log(LOG_ERROR, L"Invalid argument");
-			return ERROR_BAD_ARG;
-		}
-	}
-	if (import_json == 1) {
-		if (source == NULL || ((target == NULL) == (conn_section == NULL))) {
-			Log(LOG_ERROR, L"Invalid argument");
-			return ERROR_BAD_ARG;
-		}
-	}
-
-	// Mode Choice
 	if (export_json + import_json + delete_rows + print_tables != 1) {
 		Log(LOG_ERROR, L"This mode is not supported");
 		return ERROR_BAD_ARG;
 	}
-
-	// Using Connectionstring OR ConnectSection
-	if (conn_section == NULL) {
-		if (export_json == 1) {
-			conn_string = source;
-		}
-		else {
-			conn_string = target;
+	if (export_json == 1) {
+		conn_string = source;
+		json_file_name = target;
+	}
+	if (import_json == 1) {
+		conn_string = target;
+		json_file_name = source;
+	}
+	if ((conn_string == NULL) && (conn_section == NULL)) {
+		Log(LOG_ERROR, L"Connection string or connect section is needed");
+		return ERROR_BAD_ARG;
+	}
+	if (export_json == 1 || import_json == 1) {
+		if (json_file_name == NULL) {
+			Log(LOG_ERROR, L"JSON file name is needed");
+			return ERROR_BAD_ARG;
 		}
 	}
-	else {
+	if (conn_string == NULL) {
+		//fmtlib?!?!?!?!!?!
 		const int wcsbuf_size = 1024;
 		WCHAR wcs_buf[wcsbuf_size];
-		std::wstring val_dsn = getValFromINIFile(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
-		std::wstring val_trusted_connection = getValFromINIFile(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
-		std::wstring val_uid = getValFromINIFile(conn_section, L"UID", DEFALUT_EMPTY_VAL);
-		std::wstring val_pwd = getValFromINIFile(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
-		std::wstring val_database = getValFromINIFile(conn_section, L"Database", DEFALUT_EMPTY_VAL);
+		std::wstring val_dsn = getINIFileWstring(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
+		std::wstring val_trusted_connection = getINIFileWstring(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
+		std::wstring val_uid = getINIFileWstring(conn_section, L"UID", DEFALUT_EMPTY_VAL);
+		std::wstring val_pwd = getINIFileWstring(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
+		std::wstring val_database = getINIFileWstring(conn_section, L"Database", DEFALUT_EMPTY_VAL);
 		swprintf_s(wcs_buf, wcsbuf_size, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn.c_str(), val_trusted_connection.c_str(), val_uid.c_str(), val_pwd.c_str(), val_database.c_str());
+		//std::wstring ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
 		conn_string = wcs_buf;
+		//fmt::print("Hello, world!\n");
 	}
 
 	// Connect DB
 	SUCCEEDED_CHECK(connectToDB(henv, hdbc, conn_string), ERROR_CONNECT_DB, L"Connecting DB");
+
+	SQL_SET_AUTOCOMMIT_OFF(hdbc);
 
 	uid_exist_table_name_set = getDiffWstrSet(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
         INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accout_uid_field_name.c_str()), exclusion_table_name_set);
@@ -441,10 +405,10 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	if (export_json == 1) {
 		SUCCEEDED_CHECK(exportJsonFromDB(uid_exist_table_name_set, accountuid, hdbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
 
-		SUCCEEDED_CHECK(writeJsonFile(root, target), ERROR_WRITING_FILE, L"Writing JSON file");
+		SUCCEEDED_CHECK(writeJsonFile(root, json_file_name), ERROR_WRITING_FILE, L"Writing JSON file");
 	}
 	else if (import_json == 1) {
-		SUCCEEDED_CHECK(readJsonFile(root, source), ERROR_READING_FILE, L"Reading JSON file");
+		SUCCEEDED_CHECK(readJsonFile(root, json_file_name), ERROR_READING_FILE, L"Reading JSON file");
 
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid, uid_exist_table_name_set), ERROR_READING_FILE, L"Importing Json into DB");
 	}
@@ -453,15 +417,17 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	}
 	else if (print_tables == 1) {
 		for (const std::wstring current_table_name : uid_exist_table_name_set) {
-			fwprintf(stdout, L"TABLE NAME : %s\n", current_table_name.c_str());
+			Log(LOG_INFO, current_table_name);
 			SUCCEEDED_CHECK(printTable(hdbc, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accout_uid_field_name.c_str(), accountuid), ERROR_PRINT_TABLE, L"Printing tables");
 		}
 	}
 Exit:
+	SQL_SET_AUTOCOMMIT_ON(hdbc);
+
 	if (!disconnectDB(henv, hdbc, hstmt)) {
-		fwprintf(stderr, L"Failed : Disconnecting DB\n");
+		Log(LOG_ERROR, L"Failed : Disconnecting DB");
 		return ERROR_DISCONNECT_DB;
 	}
-	fwprintf(stdout, L"SUCCESS : Disconnecting DB\n");
+	Log(LOG_INFO, L"SUCCESS : Disconnecting DB");
 	return return_val;
 }
