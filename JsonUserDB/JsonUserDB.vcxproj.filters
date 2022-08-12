@@ -68,5 +68,8 @@
     <ClInclude Include="fmt\xchar.h">
       <Filter>3rdPartyLibrary</Filter>
     </ClInclude>
+    <ClInclude Include="fmt\format-inl.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

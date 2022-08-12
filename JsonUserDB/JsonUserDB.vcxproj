@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClInclude Include="argparse.h" />
     <ClInclude Include="fmt\core.h" />
+    <ClInclude Include="fmt\format-inl.h" />
     <ClInclude Include="fmt\format.h" />
     <ClInclude Include="fmt\xchar.h" />
     <ClInclude Include="json\json-forwards.h" />

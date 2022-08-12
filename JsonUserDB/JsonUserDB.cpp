@@ -23,9 +23,12 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "logutility.h"
+
+#define FMT_HEADER_ONLY
 #include "fmt/core.h"
-//#include "fmt/format.h"
-//#include "fmt/xchar.h"
+#include "fmt/format.h"
+#include "fmt/xchar.h"
+#include "fmt/format-inl.h"
 
 #define APP_NAME "JsonUserDB"
 
@@ -310,6 +313,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	const WCHAR* conn_section = NULL;
 	const WCHAR* conn_string = NULL;
 	const WCHAR* json_file_name = NULL;
+	std::wstring ws_buf;
 	setlocale(LC_ALL, "en-US.UTF-8");
 
 	// ARGOARSE SET
@@ -380,18 +384,13 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 	}
 	if (conn_string == NULL) {
-		//fmtlib?!?!?!?!!?!
-		const int wcsbuf_size = 1024;
-		WCHAR wcs_buf[wcsbuf_size];
 		std::wstring val_dsn = getINIFileWstring(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
 		std::wstring val_trusted_connection = getINIFileWstring(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
 		std::wstring val_uid = getINIFileWstring(conn_section, L"UID", DEFALUT_EMPTY_VAL);
 		std::wstring val_pwd = getINIFileWstring(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
 		std::wstring val_database = getINIFileWstring(conn_section, L"Database", DEFALUT_EMPTY_VAL);
-		swprintf_s(wcs_buf, wcsbuf_size, L"DSN=%s;trusted_connection=%s;UID=%s;PWD=%s;Database=%s;", val_dsn.c_str(), val_trusted_connection.c_str(), val_uid.c_str(), val_pwd.c_str(), val_database.c_str());
-		//std::wstring ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
-		conn_string = wcs_buf;
-		//fmt::print("Hello, world!\n");
+		ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
+		conn_string = ws_buf.c_str();
 	}
 
 	// Connect DB
