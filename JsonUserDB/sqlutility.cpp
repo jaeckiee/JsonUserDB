@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include "sqlutility.h"
 #include "strutility.h"
+#include "logutility.h"
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	bool is_succeeded = false;
@@ -21,7 +22,7 @@ bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
 	va_end(args);
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
 	if (g_verbose) {
-		fwprintf(stdout, L"\n%s", fwszinput);
+		Log(LOG_INFO, std::wstring(fwszinput));
 	}
 	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszinput, SQL_NTS))) {
 		is_succeeded = true;
@@ -81,16 +82,17 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 		SQLUSMALLINT col_num;
 		Json::Value current_record;
 		for (col_num = 1; col_num <= snum_results; col_num++) {
-			const SQLSMALLINT buf_size = 8000;
-			SQLWCHAR col_name[buf_size];
+			const SQLSMALLINT col_name_buf_size = 128;
+			SQLWCHAR col_name[col_name_buf_size];
 			SQLSMALLINT col_type;
-			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, col_name, buf_size, NULL, &col_type, NULL, NULL, NULL););
+			SQLULEN col_size;
+			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, col_name, col_name_buf_size, NULL, &col_type, &col_size, NULL, NULL););
 			SQLLEN indicator;
 			int col_Int_val;
 			bool col_bit_val;
 			float col_float_val;
 			double col_double_val;
-			SQLWCHAR col_wchar_val[buf_size];
+			SQLWCHAR* col_wchar_val;
 			switch (col_type) {
 			case SQL_INTEGER:
 			case SQL_TINYINT:
@@ -108,6 +110,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 				break;
 			case SQL_BINARY:
 			case SQL_VARBINARY:
+				col_size = col_size * 2;
 			case SQL_BIGINT:
 			case SQL_CHAR:
 			case SQL_VARCHAR:
@@ -121,7 +124,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 			case SQL_TYPE_TIME:
 			case SQL_TIMESTAMP:
 			case SQL_TYPE_TIMESTAMP:
-				STORE_RECORD_STR(SQL_UNICODE, col_wchar_val);
+				STORE_RECORD_STR(SQL_UNICODE, col_size);
 				break;
 			default:
 				Log(LOG_FATAL, L"This column type is not supported");

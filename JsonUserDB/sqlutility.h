@@ -30,10 +30,18 @@
 #define STORE_RECORD(x, y) 		\
 						SQLGetData(hstmt, col_num, x, &y, sizeof(y), &indicator); \
 						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = y;
+//
+//#define STORE_RECORD_STR(x)		\
+//                        col_wchar_val = new SQLWCHAR[8000];\
+//						SQLGetData(hstmt, col_num, x, col_wchar_val, 8000 * sizeof(WCHAR), &indicator);\
+//						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(col_wchar_val);\
+//                        delete[] col_wchar_val;
 
 #define STORE_RECORD_STR(x, y)		\
-						SQLGetData(hstmt, col_num, x, &y, sizeof(y), &indicator); \
-						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(y);
+                        col_wchar_val = new SQLWCHAR[y + 1];\
+						SQLGetData(hstmt, col_num, x, col_wchar_val, (y + 1) * sizeof(WCHAR), &indicator);\
+						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(col_wchar_val);\
+                        delete[] col_wchar_val;
 
 static SHORT g_height = 80;
 static int g_verbose = 0;

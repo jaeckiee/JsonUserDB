@@ -292,7 +292,7 @@ Exit:
 	return is_succeeded;
 }
 
-std::wstring getINIFileWstring(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
+std::wstring getINIFileStrW(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
 	const int val_buf_size = 1024;
 	WCHAR val_buf[val_buf_size];
 	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_buf_size, INI_FILE_NAME);
@@ -325,8 +325,8 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 
 	// CONFIG SECTION
 	g_standard_log_severity_lv = GetPrivateProfileInt(L"CONFIG", L"LOG_STANDARD_SEVERITY_LEVEL", LOG_ALL, INI_FILE_NAME);
-	g_accout_uid_field_name = getINIFileWstring(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL);
-	std::wstring exclusion_table_names = getINIFileWstring(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL);
+	g_accout_uid_field_name = getINIFileStrW(L"CONFIG", L"ACCOUNT_UID_FIELD_NAME", DEFALUT_EMPTY_VAL);
+	std::wstring exclusion_table_names = getINIFileStrW(L"CONFIG", L"IGNORE_TABLE_NAME_LIST", DEFALUT_EMPTY_VAL);
 
 	exclusion_table_name_set = splitStr(exclusion_table_names, L',');
 	
@@ -384,11 +384,11 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		}
 	}
 	if (conn_string == NULL) {
-		std::wstring val_dsn = getINIFileWstring(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
-		std::wstring val_trusted_connection = getINIFileWstring(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
-		std::wstring val_uid = getINIFileWstring(conn_section, L"UID", DEFALUT_EMPTY_VAL);
-		std::wstring val_pwd = getINIFileWstring(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
-		std::wstring val_database = getINIFileWstring(conn_section, L"Database", DEFALUT_EMPTY_VAL);
+		std::wstring val_dsn = getINIFileStrW(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
+		std::wstring val_trusted_connection = getINIFileStrW(conn_section, L"trusted_connection", DEFAULT_TRRUSTED_CONNECTION_VAL);
+		std::wstring val_uid = getINIFileStrW(conn_section, L"UID", DEFALUT_EMPTY_VAL);
+		std::wstring val_pwd = getINIFileStrW(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
+		std::wstring val_database = getINIFileStrW(conn_section, L"Database", DEFALUT_EMPTY_VAL);
 		ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
 		conn_string = ws_buf.c_str();
 	}
