@@ -23,6 +23,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "logutility.h"
+#include "memoryutility.h"
+#include <new>
 
 #define FMT_HEADER_ONLY
 #include "fmt/core.h"
@@ -313,9 +315,9 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	WCHAR* target = NULL;
 	WCHAR* json_file_name = NULL;
 	WCHAR* conn_section = NULL;
-	WCHAR* conn_string = NULL;
-	std::wstring wstr_buf;
+	std::wstring conn_string;
 	setlocale(LC_ALL, "en-US.UTF-8");
+	std::set_new_handler(&handleNewAllocFail);
 
 	// ARGOARSE SET
 	int export_json = 0;
@@ -380,18 +382,17 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 			return ERROR_BAD_ARG;
 		}
 	}
-	if ((conn_string == NULL) && (conn_section == NULL)) {
+	if ((conn_string.empty()) && (conn_section == NULL)) {
 		Log(LOG_ERROR, L"Connection string or connect section is needed");
 		return ERROR_BAD_ARG;
 	}
-	if (conn_string == NULL) {
+	if (conn_string.empty()) {
 		std::wstring val_dsn = getINIFileStr(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
 		std::wstring val_trusted_connection = getINIFileStr(conn_section, L"trusted_connection", DEFAULT_TRUSTED_CONNECTION_VAL);
 		std::wstring val_uid = getINIFileStr(conn_section, L"UID", DEFALUT_EMPTY_VAL);
 		std::wstring val_pwd = getINIFileStr(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
 		std::wstring val_database = getINIFileStr(conn_section, L"Database", DEFALUT_EMPTY_VAL);
-		wstr_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
-		conn_string = const_cast<WCHAR*>(wstr_buf.c_str());
+		conn_string = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
 	}
 
 	// Connect DB

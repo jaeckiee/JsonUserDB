@@ -44,7 +44,6 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInp
 	while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
 		SQLLEN indicator;
 		SQLWCHAR* buf = new SQLWCHAR[col_size + 1];
-		std::set_new_handler(&handleNewAllocFail);
 		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, (col_size + 1) * sizeof(SQLWCHAR), &indicator))) {
 			if (indicator != SQL_NULL_DATA) {
 				row_val_set.insert(std::wstring(buf));
@@ -127,12 +126,12 @@ Exit:
 	return result_json;
 }
 
-bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, WCHAR* pwszConnStr) {
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr) {
 	bool is_succeeded = false;
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc));
-	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
+	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
 Exit:
 	return is_succeeded;
 }
