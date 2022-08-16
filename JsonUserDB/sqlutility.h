@@ -55,18 +55,18 @@ typedef struct STR_BINDING {
 } BINDING;
 
 // For SQL Execute
-bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...);
+bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, std::wstring wszInput);
 
 // Return Result Of Query
-std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...);
-Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...);
+std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInput);
+Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstring wszInput);
 
 // Connect And Diconnect DB
-bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr);
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLWCHAR* pwszConnStr);
 bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt);
 
 // Print Table
-bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...);
+bool printTable(SQLHDBC hDbc, std::wstring wszInput);
 
 // Print Info
 void HandleDiagnosticRecord(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode);

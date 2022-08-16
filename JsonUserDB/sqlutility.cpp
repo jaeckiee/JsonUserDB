@@ -12,19 +12,14 @@
 #include "strutility.h"
 #include "logutility.h"
 
-bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, std::wstring wszInput) {
 	bool is_succeeded = false;
 	RETCODE retcode;
-	WCHAR fwszinput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
 	if (g_verbose) {
-		Log(LOG_INFO, std::wstring(fwszinput));
+		Log(LOG_INFO, wszInput);
 	}
-	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, fwszinput, SQL_NTS))) {
+	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, const_cast<SQLWCHAR*>(wszInput.c_str()), SQL_NTS))) {
 		is_succeeded = true;
 	}
 	else {
@@ -34,16 +29,11 @@ Exit:
 	return is_succeeded;
 }
 
-std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	std::unordered_set<std::wstring> row_val_set;
-	WCHAR fwszinput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	if (!sqlfExec(hstmt, hDbc, fwszinput))
+	if (!sqlfExec(hstmt, hDbc, const_cast<SQLWCHAR*>(wszInput.c_str())))
 		goto Exit;
 	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 	if (snum_results != 1)
@@ -65,16 +55,11 @@ Exit:
 	return row_val_set;
 }
 
-Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR* wszInput, ...) {
+Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	Json::Value result_json;
-	WCHAR fwszinput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	if (!sqlfExec(hstmt, hDbc, fwszinput))
+	if (!sqlfExec(hstmt, hDbc, const_cast<SQLWCHAR*>(wszInput.c_str())))
 		goto Exit;
 	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 	if (snum_results <= 0)
@@ -139,12 +124,12 @@ Exit:
 	return result_json;
 }
 
-bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, std::wstring pwszConnStr) {
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLWCHAR* pwszConnStr) {
 	bool is_succeeded = false;
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc));
-	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
+	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, pwszConnStr, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
 Exit:
 	return is_succeeded;
 }
@@ -168,17 +153,12 @@ bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt) {
 	return is_succeeded;
 }
 
-bool printTable(SQLHDBC hDbc, const WCHAR* wszInput, ...) {
+bool printTable(SQLHDBC hDbc, std::wstring wszInput) {
 	bool is_succeeded = false;
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hstmt));
-	WCHAR fwszinput[SQL_QUERY_SIZE];
-	va_list args;
-	va_start(args, wszInput);
-	_vsnwprintf_s(fwszinput, SQL_QUERY_SIZE, wszInput, args);
-	va_end(args);
-	if (sqlfExec(hstmt, hDbc, fwszinput)) {
+	if (sqlfExec(hstmt, hDbc, wszInput.c_str())) {
 		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 		if (snum_results > 0) {
 			printResults(hstmt, snum_results);

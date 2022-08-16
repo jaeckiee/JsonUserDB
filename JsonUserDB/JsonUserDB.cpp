@@ -132,7 +132,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, s
 			return false;
 		}
 		Json::Value current_table = root[get_utf8(current_table_name)];
-		Json::Value col_infos = sqlfMultiCol(hDbc, current_table_name, L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'", current_table_name.c_str());
+		Json::Value col_infos = sqlfMultiCol(hDbc, current_table_name, fmt::format(L"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{}'", current_table_name));
 		std::unordered_map<std::wstring, std::pair<std::wstring, std::wstring>> hm_col_infos;
 		for (const Json::Value col_info : col_infos) {
 			if (col_info.size() <= 0)
@@ -198,7 +198,7 @@ bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, s
 					exit(ERROR_FATAL);
 				}
 			}
-			is_succeeded = sqlfExec(hstmt, hDbc, (insert_model.str()).c_str());
+			is_succeeded = sqlfExec(hstmt, hDbc, insert_model.str());
 			if (!is_succeeded) {
 				Log(LOG_ERROR, L"Failed to insert values in DB");
 				goto Exit;
@@ -220,8 +220,8 @@ bool exportJsonFromDB(std::unordered_set<std::wstring> tableNameSet, std::wstrin
 	}
 	root[get_utf8(g_accountuid_field_name)] = get_utf8(accountUid);
 	for (const std::wstring current_table_name : tableNameSet) {
-		std::unordered_set<std::wstring> auto_col_name_set = sqlfSingleCol(hDbc, L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '%s'", current_table_name.c_str());
-		Json::Value current_table = sqlfMultiCol(hDbc, current_table_name, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accountuid_field_name.c_str(), accountUid.c_str());
+		std::unordered_set<std::wstring> auto_col_name_set = sqlfSingleCol(hDbc, fmt::format(L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'", current_table_name));
+		Json::Value current_table = sqlfMultiCol(hDbc, current_table_name, fmt::format(L"SELECT * FROM {0} WHERE {1} = {2}", current_table_name, g_accountuid_field_name, accountUid));
 		for (int row_idx = 0; row_idx < (int) current_table.size(); row_idx++) {
 			current_table[row_idx].removeMember(get_utf8(g_accountuid_field_name));
 			for (const std::wstring auto_col_name : auto_col_name_set)
@@ -281,7 +281,7 @@ bool deleteAccountDataFromTables(SQLHDBC hDbc, std::unordered_set<std::wstring> 
 	SQLHSTMT hstmt = NULL;
 	bool is_succeeded = false;
 	for (const std::wstring current_table_name : uidExistTableNameSet) {
-		is_succeeded = sqlfExec(hstmt, hDbc, L"IF EXISTS(SELECT * FROM %s WHERE %s = %s) BEGIN DELETE FROM %s WHERE %s = %s END", current_table_name.c_str(), g_accountuid_field_name.c_str(), accountUid.c_str(), current_table_name.c_str(), g_accountuid_field_name.c_str(), accountUid.c_str());
+		is_succeeded = sqlfExec(hstmt, hDbc, fmt::format(L"IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END", current_table_name, g_accountuid_field_name, accountUid, current_table_name, g_accountuid_field_name, accountUid));
 		if (!is_succeeded) {
 			Log(LOG_ERROR, L"Failed to delete account data from table");
 			goto Exit;
@@ -309,12 +309,12 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	std::unordered_set<std::wstring> uid_exist_table_name_set;
 	std::unordered_set<std::wstring> exclusion_table_name_set;
 	Json::Value root;
-	const WCHAR* accountuid = NULL;
-	const WCHAR* source = NULL;
-	const WCHAR* target = NULL;
-	const WCHAR* conn_section = NULL;
-	const WCHAR* conn_string = NULL;
-	const WCHAR* json_file_name = NULL;
+	WCHAR* accountuid = NULL;
+	WCHAR* source = NULL;
+	WCHAR* target = NULL;
+	WCHAR* conn_section = NULL;
+	WCHAR* conn_string = NULL;
+	WCHAR* json_file_name = NULL;
 	std::wstring ws_buf;
 	setlocale(LC_ALL, "en-US.UTF-8");
 
@@ -375,24 +375,24 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		conn_string = target;
 		json_file_name = source;
 	}
-	if ((conn_string == NULL) && (conn_section == NULL)) {
-		Log(LOG_ERROR, L"Connection string or connect section is needed");
-		return ERROR_BAD_ARG;
-	}
 	if (export_json == 1 || import_json == 1) {
 		if (json_file_name == NULL) {
 			Log(LOG_ERROR, L"JSON file name is needed");
 			return ERROR_BAD_ARG;
 		}
 	}
+	if ((conn_string == NULL) && (conn_section == NULL)) {
+		Log(LOG_ERROR, L"Connection string or connect section is needed");
+		return ERROR_BAD_ARG;
+	}
 	if (conn_string == NULL) {
-		std::wstring val_dsn = getINIFileStrW(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
-		std::wstring val_trusted_connection = getINIFileStrW(conn_section, L"trusted_connection", DEFAULT_TRUSTED_CONNECTION_VAL);
-		std::wstring val_uid = getINIFileStrW(conn_section, L"UID", DEFALUT_EMPTY_VAL);
-		std::wstring val_pwd = getINIFileStrW(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
-		std::wstring val_database = getINIFileStrW(conn_section, L"Database", DEFALUT_EMPTY_VAL);
+		std::wstring val_dsn = getINIFileStr(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
+		std::wstring val_trusted_connection = getINIFileStr(conn_section, L"trusted_connection", DEFAULT_TRUSTED_CONNECTION_VAL);
+		std::wstring val_uid = getINIFileStr(conn_section, L"UID", DEFALUT_EMPTY_VAL);
+		std::wstring val_pwd = getINIFileStr(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
+		std::wstring val_database = getINIFileStr(conn_section, L"Database", DEFALUT_EMPTY_VAL);
 		ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
-		conn_string = ws_buf.c_str();
+		conn_string = const_cast<SQLWCHAR*>(ws_buf.c_str());
 	}
 
 	// Connect DB
@@ -400,8 +400,8 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 
 	SQL_SET_AUTOCOMMIT_OFF(hdbc);
 
-	uid_exist_table_name_set = getDiffWstrSet(sqlfSingleCol(hdbc, L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '%s' \
-        INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accountuid_field_name.c_str()), exclusion_table_name_set);
+	uid_exist_table_name_set = getDiffWstrSet(sqlfSingleCol(hdbc, fmt::format(L"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' \
+        INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", g_accountuid_field_name)), exclusion_table_name_set);
 
 	if (export_json == 1) {
 		SUCCEEDED_CHECK(exportJsonFromDB(uid_exist_table_name_set, accountuid, hdbc, root), ERROR_EXPORT_JSON, L"Exporting JSON from DB");
@@ -419,7 +419,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	else if (print_tables == 1) {
 		for (const std::wstring current_table_name : uid_exist_table_name_set) {
 			Log(LOG_INFO, current_table_name);
-			SUCCEEDED_CHECK(printTable(hdbc, L"SELECT * FROM %s WHERE %s = %s", current_table_name.c_str(), g_accountuid_field_name.c_str(), accountuid), ERROR_PRINT_TABLE, L"Printing tables");
+			SUCCEEDED_CHECK(printTable(hdbc, fmt::format(L"SELECT * FROM {0} WHERE {1} = {2}", current_table_name, g_accountuid_field_name, std::wstring(accountuid))), ERROR_PRINT_TABLE, L"Printing tables");
 		}
 	}
 Exit:
