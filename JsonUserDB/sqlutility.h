@@ -23,7 +23,6 @@
 #define DISPLAY_FORMAT      L"%c %*.*s "
 #define DISPLAY_FORMAT_C    L"%c %-*.*s "
 #define NULL_SIZE           6   // <NULL>
-#define SQL_QUERY_SIZE      5000 // Max. Num characters for SQL Query passed in.
 
 #define PIPE                L'|'
 
@@ -62,7 +61,7 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInp
 Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstring wszInput);
 
 // Connect And Diconnect DB
-bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLWCHAR* pwszConnStr);
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, WCHAR* pwszConnStr);
 bool disconnectDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLHSTMT& hStmt);
 
 // Print Table

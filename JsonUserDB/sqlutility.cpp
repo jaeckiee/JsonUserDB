@@ -33,7 +33,7 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInp
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	std::unordered_set<std::wstring> row_val_set;
-	if (!sqlfExec(hstmt, hDbc, const_cast<SQLWCHAR*>(wszInput.c_str())))
+	if (!sqlfExec(hstmt, hDbc, wszInput))
 		goto Exit;
 	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 	if (snum_results != 1)
@@ -59,7 +59,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstrin
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	Json::Value result_json;
-	if (!sqlfExec(hstmt, hDbc, const_cast<SQLWCHAR*>(wszInput.c_str())))
+	if (!sqlfExec(hstmt, hDbc, wszInput))
 		goto Exit;
 	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 	if (snum_results <= 0)
@@ -124,12 +124,12 @@ Exit:
 	return result_json;
 }
 
-bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, SQLWCHAR* pwszConnStr) {
+bool connectToDB(SQLHENV& hEnv, SQLHDBC& hDbc, WCHAR* pwszConnStr) {
 	bool is_succeeded = false;
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0));
 	TRYODBC(hEnv, SQL_HANDLE_ENV, SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc));
-	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, pwszConnStr, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
+	is_succeeded = SQL_SUCCEEDED(SQLDriverConnect(hDbc, NULL, const_cast<SQLWCHAR*>(pwszConnStr), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE));
 Exit:
 	return is_succeeded;
 }

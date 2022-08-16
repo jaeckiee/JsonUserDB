@@ -295,7 +295,7 @@ Exit:
 }
 
 std::wstring getINIFileStrW(const WCHAR* connSection, const WCHAR* key, const WCHAR* defaultVal) {
-	const int val_buf_size = 1024;
+	const int val_buf_size = 512;
 	WCHAR val_buf[val_buf_size];
 	GetPrivateProfileString(connSection, key, defaultVal, val_buf, val_buf_size, INI_FILE_NAME);
 	return std::wstring(val_buf);
@@ -312,10 +312,10 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	WCHAR* accountuid = NULL;
 	WCHAR* source = NULL;
 	WCHAR* target = NULL;
+	WCHAR* json_file_name = NULL;
 	WCHAR* conn_section = NULL;
 	WCHAR* conn_string = NULL;
-	WCHAR* json_file_name = NULL;
-	std::wstring ws_buf;
+	std::wstring wstr_buf;
 	setlocale(LC_ALL, "en-US.UTF-8");
 
 	// ARGOARSE SET
@@ -391,12 +391,12 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		std::wstring val_uid = getINIFileStr(conn_section, L"UID", DEFALUT_EMPTY_VAL);
 		std::wstring val_pwd = getINIFileStr(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
 		std::wstring val_database = getINIFileStr(conn_section, L"Database", DEFALUT_EMPTY_VAL);
-		ws_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
-		conn_string = const_cast<SQLWCHAR*>(ws_buf.c_str());
+		wstr_buf = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
+		conn_string = const_cast<WCHAR*>(wstr_buf.c_str());
 	}
 
 	// Connect DB
-	SUCCEEDED_CHECK(connectToDB(henv, hdbc, conn_string), ERROR_CONNECT_DB, L"Connecting DB");
+	SUCCEEDED_CHECK(connectToDB(henv, hdbc,conn_string), ERROR_CONNECT_DB, L"Connecting DB");
 
 	SQL_SET_AUTOCOMMIT_OFF(hdbc);
 
