@@ -53,6 +53,7 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, const WCHAR* wszInp
 		SQLSMALLINT col_num = 1;
 		const int buf_size = 512;
 		WCHAR buf[buf_size];
+		buf[buf_size - 1] = L'\0';
 		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
 			if (indicator != SQL_NULL_DATA) {
 				row_val_set.insert(buf);
@@ -82,7 +83,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, const WCHAR
 		SQLUSMALLINT col_num;
 		Json::Value current_record;
 		for (col_num = 1; col_num <= snum_results; col_num++) {
-			const SQLSMALLINT col_name_buf_size = 128;
+			const SQLSMALLINT col_name_buf_size = 512;
 			SQLWCHAR col_name[col_name_buf_size];
 			SQLSMALLINT col_type;
 			SQLULEN col_size;
