@@ -32,28 +32,31 @@ Exit:
 std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
+	SQLSMALLINT col_num = 1;
 	std::unordered_set<std::wstring> row_val_set;
 	if (!sqlfExec(hstmt, hDbc, wszInput))
 		goto Exit;
 	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 	if (snum_results != 1)
 		goto Exit;
+	SQLULEN col_size;
+	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, NULL, NULL, NULL, NULL, &col_size, NULL, NULL));
 	while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
 		SQLLEN indicator;
-		SQLSMALLINT col_num = 1;
-		const int buf_size = 512;
-		WCHAR buf[buf_size];
-		buf[buf_size - 1] = L'\0';
-		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, sizeof(buf), &indicator))) {
+		SQLWCHAR* buf = new SQLWCHAR[col_size + 1];
+		std::set_new_handler(&handleNewAllocFail);
+		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, (col_size + 1) * sizeof(SQLWCHAR), &indicator))) {
 			if (indicator != SQL_NULL_DATA) {
-				row_val_set.insert(buf);
+				row_val_set.insert(std::wstring(buf));
 			}
 		}
+		delete[] buf;
 	}
 Exit:
 	SQL_SAFE_FREESTATEMENT(hstmt);
 	return row_val_set;
 }
+
 
 Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
@@ -72,7 +75,7 @@ Json::Value sqlfMultiCol(SQLHDBC hDbc, const std::wstring tableName, std::wstrin
 			SQLWCHAR col_name[col_name_buf_size];
 			SQLSMALLINT col_type;
 			SQLULEN col_size;
-			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, col_name, col_name_buf_size, NULL, &col_type, &col_size, NULL, NULL););
+			TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, col_name, col_name_buf_size, NULL, &col_type, &col_size, NULL, NULL));
 			SQLLEN indicator;
 			int col_Int_val;
 			bool col_bit_val;
@@ -158,7 +161,7 @@ bool printTable(SQLHDBC hDbc, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hstmt));
-	if (sqlfExec(hstmt, hDbc, wszInput.c_str())) {
+	if (sqlfExec(hstmt, hDbc, wszInput)) {
 		TRYODBC(hstmt, SQL_HANDLE_STMT, SQLNumResultCols(hstmt, &snum_results));
 		if (snum_results > 0) {
 			printResults(hstmt, snum_results);

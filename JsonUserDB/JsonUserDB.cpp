@@ -85,7 +85,6 @@ const WCHAR* INI_FILE_NAME = L".\\JsonUserDB.ini";
 //global variation
 std::wstring g_accountuid_field_name;
 
-
 static std::unordered_map<std::wstring, int> COLUMN_DATA_TYPE({ {L"int", SQL_INTEGER},\
 																	{L"tinyint", SQL_TINYINT},\
 																	{L"smallint", SQL_SMALLINT},\

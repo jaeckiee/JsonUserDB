@@ -135,6 +135,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="logutility.cpp" />
+    <ClCompile Include="memoryutility.cpp" />
     <ClCompile Include="sqlutility.cpp" />
     <ClCompile Include="strutility.cpp" />
   </ItemGroup>
@@ -147,6 +148,7 @@
     <ClInclude Include="json\json-forwards.h" />
     <ClInclude Include="json\json.h" />
     <ClInclude Include="logutility.h" />
+    <ClInclude Include="memoryutility.h" />
     <ClInclude Include="sqlbuilder.h" />
     <ClInclude Include="sqlutility.h" />
     <ClInclude Include="strutility.h" />

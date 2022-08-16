@@ -1,6 +1,7 @@
 #pragma once
 #include "json/json.h"
 #include "logutility.h"
+#include "memoryutility.h"
 
 // Macro to call ODBC functions and report an error on failure and Takes handle, handle type, and stmt
 #define TRYODBC(h, ht, x)   {   RETCODE rc = x;\
@@ -29,15 +30,10 @@
 #define STORE_RECORD(x, y) 		\
 						SQLGetData(hstmt, col_num, x, &y, sizeof(y), &indicator); \
 						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = y;
-//
-//#define STORE_RECORD_STR(x)		\
-//                        col_wchar_val = new SQLWCHAR[8000];\
-//						SQLGetData(hstmt, col_num, x, col_wchar_val, 8000 * sizeof(WCHAR), &indicator);\
-//						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(col_wchar_val);\
-//                        delete[] col_wchar_val;
 
 #define STORE_RECORD_STR(x, y)		\
                         col_wchar_val = new SQLWCHAR[y + 1];\
+                        std::set_new_handler(&handleNewAllocFail);\
 						SQLGetData(hstmt, col_num, x, col_wchar_val, (y + 1) * sizeof(WCHAR), &indicator);\
 						if (indicator != SQL_NULL_DATA) current_record[get_utf8(col_name)] = get_utf8(col_wchar_val);\
                         delete[] col_wchar_val;
