@@ -348,7 +348,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		return SUCCESS;
 	}
 	if (accountuid == NULL) {
-		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Target accountUID is needed", ERROR_BAD_ARG)
+		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Target accountUID is needed", ERROR_BAD_ARG);
 	}
 	if (verbose != 0)
 		g_verbose = verbose;
