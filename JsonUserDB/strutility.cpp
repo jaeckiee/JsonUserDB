@@ -28,22 +28,19 @@ std::unordered_set<std::wstring> splitStrW(const std::wstring& InputString, wcha
 std::unordered_set<std::wstring>& splitStrW(const std::wstring& InputString, wchar_t delimiterChar, std::unordered_set<std::wstring>& resultSet) {
 	std::wstringstream sstream(InputString);
 	std::wstring item;
-	while (std::getline(sstream, item, delimiterChar)) {
+	while (std::getline(sstream, item, delimiterChar))
 		resultSet.insert(item);
-	}
 	return resultSet;
 }
 
 bool checkWstrInWstrSet(std::wstring wstr, std::unordered_set<std::wstring> wstrSet) {
-	if (wstrSet.find(wstr) == wstrSet.end()) {
+	if (wstrSet.find(wstr) == wstrSet.end())
 		return false;
-	}
 	return true;
 }
 
 std::unordered_set<std::wstring> getDiffWstrSet(std::unordered_set<std::wstring> subtractedSet, std::unordered_set<std::wstring> subtractingSet) {
-	for (const std::wstring elem : subtractingSet) {
+	for (const std::wstring elem : subtractingSet)
 		subtractedSet.erase(elem);
-	}
 	return subtractedSet;
 }

@@ -16,9 +16,8 @@ bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, std::wstring wszInput) {
 	bool is_succeeded = false;
 	RETCODE retcode;
 	TRYODBC(hDbc, SQL_HANDLE_DBC, SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt));
-	if (g_verbose) {
+	if (g_verbose)
 		Log(LOG_INFO, wszInput);
-	}
 	if (SQL_SUCCEEDED(retcode = SQLExecDirect(hStmt, const_cast<SQLWCHAR*>(wszInput.c_str()), SQL_NTS))) {
 		is_succeeded = true;
 	}
@@ -44,9 +43,8 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInp
 		SQLLEN indicator;
 		SQLWCHAR* buf = new SQLWCHAR[col_size + 1];
 		if (SQL_SUCCEEDED(SQLGetData(hstmt, 1, SQL_UNICODE, buf, (col_size + 1) * sizeof(SQLWCHAR), &indicator))) {
-			if (indicator != SQL_NULL_DATA) {
+			if (indicator != SQL_NULL_DATA)
 				row_val_set.insert(std::wstring(buf));
-			}
 		}
 		delete[] buf;
 	}

@@ -69,11 +69,6 @@
 					Log(x, y);\
 					return z;
 
-#define HANDLE_NULL_VALUE(x, y, z)\
-					if (x == NULL) {\
-					LOG_AND_RETURN_VALUE(LOG_ERROR, y, z)\
-					}
-
 // return codes
 const int ERROR_FATAL = -1;
 const int SUCCESS = 0;
@@ -128,7 +123,9 @@ static const WCHAR* const USAGES[] = {
 bool importJsonIntoDB(Json::Value root, SQLHDBC hDbc, std::wstring accountUid, std::unordered_set<std::wstring> tableNameSet) {
 	bool is_succeeded = false;
 	SQLHSTMT hstmt = NULL;
-	HANDLE_NULL_VALUE(root, L"Failed to import json cause root is null", false);
+	if (root == NULL) {
+		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Failed to import json cause root is null", false);
+	}
 	for (Json::Value::iterator table_iter = root.begin(); table_iter != root.end(); ++table_iter) {
 		Json::Value current_key = table_iter.key();
 		std::wstring current_table_name = current_key.asWstring();
@@ -213,7 +210,9 @@ Exit:
 }
 
 bool exportJsonFromDB(std::unordered_set<std::wstring> tableNameSet, std::wstring accountUid, SQLHDBC hDbc, Json::Value& root) {
-	HANDLE_NULL_VALUE(root, L"Failed to export JSON cause root is NULL", false);
+	if (root == NULL) {
+		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Failed to export JSON cause root is NULL", false);
+	}
 	root[get_utf8(g_accountuid_field_name)] = get_utf8(accountUid);
 	for (const std::wstring current_table_name : tableNameSet) {
 		std::unordered_set<std::wstring> auto_col_name_set = sqlfSingleCol(hDbc, fmt::format(L"SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'", current_table_name));
@@ -223,9 +222,8 @@ bool exportJsonFromDB(std::unordered_set<std::wstring> tableNameSet, std::wstrin
 			for (const std::wstring auto_col_name : auto_col_name_set)
 				current_table[row_idx].removeMember(get_utf8((auto_col_name)));
 		}
-		if (!current_table.empty()) {
+		if (!current_table.empty())
 			root[get_utf8(current_table_name)] = current_table;
-		}
 	}
 	return true;
 }
@@ -350,21 +348,24 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		return SUCCESS;
 	}
 	if (accountuid == NULL) {
-		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Target accountUID is needed", ERROR_BAD_ARG);
+		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Target accountUID is needed", ERROR_BAD_ARG)
 	}
-	if (verbose != 0) {
+	if (verbose != 0)
 		g_verbose = verbose;
-	}
 	if (export_json + import_json + delete_rows + print_tables != 1) {
 		LOG_AND_RETURN_VALUE(LOG_ERROR, L"This mode is not supported", ERROR_BAD_ARG);
 	}
 	if (export_json == 1) {
-		if (source != NULL) conn_string = std::wstring(source);
-		if (target != NULL)json_file_name = std::wstring(target);
+		if (source != NULL)
+			conn_string = std::wstring(source);
+		if (target != NULL)
+			json_file_name = std::wstring(target);
 	}
 	if (import_json == 1) {
-		if (target != NULL) conn_string = std::wstring(target);
-		if (source != NULL) json_file_name = std::wstring(source);
+		if (target != NULL)
+			conn_string = std::wstring(target);
+		if (source != NULL)
+			json_file_name = std::wstring(source);
 	}
 	if (export_json == 1 || import_json == 1) {
 		if (json_file_name.empty()) {
@@ -416,5 +417,6 @@ Exit:
 	if (!disconnectDB(henv, hdbc, hstmt)) {
 		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Failed : Disconnecting DB", ERROR_DISCONNECT_DB);
 	}
+
 	LOG_AND_RETURN_VALUE(LOG_INFO, L"SUCCESS : Disconnecting DB", return_val);
 }
