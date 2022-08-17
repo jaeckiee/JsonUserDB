@@ -65,10 +65,6 @@
 					exit(ERROR_FATAL);\
 					}
 
-#define LOG_AND_RETURN_VALUE(x, y, z)\
-					Log(x, y);\
-					return z;
-
 // return codes
 const int ERROR_FATAL = -1;
 const int SUCCESS = 0;
