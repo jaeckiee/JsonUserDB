@@ -32,7 +32,6 @@ Exit:
 std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInput) {
 	SQLSMALLINT snum_results;
 	SQLHSTMT hstmt = NULL;
-	SQLSMALLINT col_num = 1;
 	std::unordered_set<std::wstring> row_val_set;
 	if (!sqlfExec(hstmt, hDbc, wszInput))
 		goto Exit;
@@ -40,11 +39,11 @@ std::unordered_set<std::wstring> sqlfSingleCol(SQLHDBC hDbc, std::wstring wszInp
 	if (snum_results != 1)
 		goto Exit;
 	SQLULEN col_size;
-	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, col_num, NULL, NULL, NULL, NULL, &col_size, NULL, NULL));
+	TRYODBC(hstmt, SQL_HANDLE_STMT, SQLDescribeCol(hstmt, 1, NULL, NULL, NULL, NULL, &col_size, NULL, NULL));
 	while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
 		SQLLEN indicator;
 		SQLWCHAR* buf = new SQLWCHAR[col_size + 1];
-		if (SQL_SUCCEEDED(SQLGetData(hstmt, col_num, SQL_UNICODE, buf, (col_size + 1) * sizeof(SQLWCHAR), &indicator))) {
+		if (SQL_SUCCEEDED(SQLGetData(hstmt, 1, SQL_UNICODE, buf, (col_size + 1) * sizeof(SQLWCHAR), &indicator))) {
 			if (indicator != SQL_NULL_DATA) {
 				row_val_set.insert(std::wstring(buf));
 			}
