@@ -331,7 +331,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		OPT_STRING(L't', L"target", &target, L"Target JSON file name or target DB connection string", NULL, 0, 0),
 		OPT_STRING(L'c', L"connect", &conn_section, L"Section name in INI file for connection to DB", NULL, 0, 0),
 		OPT_STRING(L'u', L"uid", &accountuid, L"Target accountUID", NULL, 0, 0),
-		OPT_BOOLEAN(L'v', L"verbosse", &verbose, L"Provides additional details", NULL, 0, 0),
+		OPT_BOOLEAN(L'v', L"verbose", &verbose, L"Provides additional details", NULL, 0, 0),
 		OPT_END(),
 	};
 
