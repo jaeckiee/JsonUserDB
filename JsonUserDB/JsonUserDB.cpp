@@ -253,6 +253,7 @@ bool readJsonFile(Json::Value& root, std::wstring fileName) {
 	ifs.open(fileName);
 	if (ifs.good()) {
 		if (parseFromStream(builder, ifs, &root, &errs)) {
+			ifs.close();
 			return true;
 		}
 		else {
