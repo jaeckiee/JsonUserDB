@@ -372,12 +372,19 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		LOG_AND_RETURN_VALUE(LOG_ERROR, L"Connection string or connect section is needed", ERROR_BAD_ARG);
 	}
 	if (conn_string.empty()) {
+		std::wstring val_server = getINIFileStr(conn_section, L"Server", DEFALUT_EMPTY_VAL);
+		std::wstring val_driver = getINIFileStr(conn_section, L"Driver", DEFALUT_EMPTY_VAL);
 		std::wstring val_dsn = getINIFileStr(conn_section, L"DSN", DEFALUT_EMPTY_VAL);
 		std::wstring val_trusted_connection = getINIFileStr(conn_section, L"trusted_connection", DEFAULT_TRUSTED_CONNECTION_VAL);
 		std::wstring val_uid = getINIFileStr(conn_section, L"UID", DEFALUT_EMPTY_VAL);
 		std::wstring val_pwd = getINIFileStr(conn_section, L"PWD", DEFALUT_EMPTY_VAL);
 		std::wstring val_database = getINIFileStr(conn_section, L"Database", DEFALUT_EMPTY_VAL);
-		conn_string = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
+		if (val_dsn != DEFALUT_EMPTY_VAL) {
+			conn_string = fmt::format(L"DSN={0};trusted_connection={1};UID={2};PWD={3};Database={4};", val_dsn, val_trusted_connection, val_uid, val_pwd, val_database);
+		}
+		else {
+			conn_string = fmt::format(L"Server={0};Driver={1};trusted_connection={2};UID={3};PWD={4};Database={5};", val_server, val_driver, val_trusted_connection, val_uid, val_pwd, val_database);
+		}
 	}
 
 	// Connect DB
