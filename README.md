@@ -32,37 +32,47 @@ JsonUserDB –p –u AccountUID값 {-t ConnectionString | -c 섹션이름}
 ## 옵션
 ### 모드
 `-e, --export`
+
 프로그램이 EXPORT 모드로 동작하게 특정합니다. EXPORT 모드는 source DB에서 특정 AccountUID에 해당하는 데이터를 EXPORT하여 target JSON 파일에 저장합니다. EXPORT 모드는 파라미터 옵션으로 –u, –t 옵션이 필수로 입력되어야 하며 –s 와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 source가 됩니다.
 
 `-i, --import`
+
 프로그램이 IMPORT 모드로 동작하게 특정합니다. IMPORT 모드는 source JSON 파일에서 target DB로 입력받은 특정 AccountUID 값으로 데이터를 IMPORT합니다. IMPORT 모드는 파라미터 옵션으로 –u, -s 옵션이 필수로 입력되어야 하며 –t와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 target이 됩니다.
 
 `-d, --delete`
+
 프로그램이 DELETE 모드로 동작하게 특정합니다. DELETE 모드는 target DB에 특정 AccountUID의 데이터들을 DELETE합니다. –u 옵션이 필수로 입력되어야 하며 –t와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 target이 됩니다.
 
 `-p, --print`
+
 프로그램이 PRINT 모드로 동작하게 특정합니다. PRINT 모드는 target DB에 특정 AccountUID의 데이터들이 출력됩니다. 출력 형식은 테이블 명과 테이블이 출력되게 됩니다. –u 옵션이 필수로 입력되어야 하며 –t와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 target이 됩니다.
 
 ### 파라미터
 `-s, --source {ConnectionString | JSON파일이름}`
+
 EXPORT 모드일 경우에는 ConnectionString을 파라미터로 받습니다. 파라미터로 입력받은 값을 통해 DB에 접속하게 되고 해당 DB의 데이터가 EXPORT됩니다.
 IMPORT 모드일 경우에는 JSON파일이름을 파라미터로 받습니다. 입력받은 JSON 파일이름의 파일의 JSON을 target DB에 IMPORT하게 됩니다.
 
 `-t, --target {ConnectionString | JSON파일이름}`
+
 EXPORT 모드일 경우에는 JSON 파일이름을 파라미터로 받습니다. 입력받은 JSON 파일이름으로 파일이 없는 경우 파일이 생성되어 source DB에 있는 데이터가 EXPORT 되어 저장됩니다.
 IMPORT, DELETE, PRINT 모드일 경우에는 ConnectionString을 파라미터로 받습니다. 파라미터로 입력받은 값을 통해 DB에 접속하게 되고 해당 DB에 입력받은 모드의 동작의 target이 됩니다.
 
 `-c, --connect 섹션이름`
+
 INI 파일에 있는 섹션이름을 특정합니다. 특정된 섹션에 있는 키들의 값들을 통해 DB 접속을 하게 되며 해당 DB가 target 또는 source가 됩니다.
 
 `-u, --uid AccountUID값`
+
 AccountUID의 값을 특정합니다. 특정된 AccountUID의 데이터가 JSON을 통해DB에 IMPORT되거나 DB에 해당하는 AccountUID의 데이터들을 JSON으로 EXPORT하여 파일에 저장합니다.
 
 ### 그 외 옵션들
 `-v –verbose`
+
 실행된 SQL문들이 출력됩니다. (로그 레벨 : LOG_INFO)
 
 `-h, -–help`
+
 Command syntax에 대한 짧은 설명을 제공합니다.
 
 ## 부가설명
