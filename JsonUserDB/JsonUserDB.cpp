@@ -47,24 +47,6 @@
 						goto Exit;\
 						}
 
-#define SQL_SET_AUTOCOMMIT_OFF(h)\
-					if (!SQL_SUCCEEDED(SQLSetConnectAttr(hdbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, SQL_IS_UINTEGER))) {\
-					Log(LOG_FATAL, L"Failed to set autocommit off");\
-					exit(ERROR_FATAL);\
-					}
-
-#define SQL_END_TRANSACTION(h, i)\
-					if (!SQL_SUCCEEDED(SQLEndTran(SQL_HANDLE_DBC, h, i ? SQL_COMMIT : SQL_ROLLBACK))) {\
-					Log(LOG_FATAL, L"Failed to end transaction");\
-					exit(ERROR_FATAL);\
-					}
-
-#define SQL_SET_AUTOCOMMIT_ON(h)\
-					if (!SQL_SUCCEEDED(SQLSetConnectAttr(hdbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, SQL_IS_UINTEGER))) {\
-					Log(LOG_FATAL, L"Failed to set autocommit on");\
-					exit(ERROR_FATAL);\
-					}
-
 // return codes
 const int ERROR_FATAL = -1;
 const int SUCCESS = 0;
