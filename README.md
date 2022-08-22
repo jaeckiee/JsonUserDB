@@ -18,7 +18,7 @@ JsonUserDB –e –u AccountUID값 –t JSON파일이름 {-s ConnectionString | 
 ```
 ### IMPORT 모드
 ```sh
-JsonUserDB –i –u AccountUID값 –s JSON파일이름 {-t ConnectionString | -c 섹션이름}
+JsonUserDB [-f] –i –u AccountUID값 –s JSON파일이름 {-t ConnectionString | -c 섹션이름}
 ```
 ### DELETE 모드
 ```sh
@@ -74,6 +74,10 @@ AccountUID의 값을 특정합니다. 특정된 AccountUID의 데이터가 JSON�
 `-h, -–help`
 
 Command syntax에 대한 짧은 설명을 제공합니다.
+
+`-f, -–force`
+
+IMPORT 모드일 경우 JSON을 DB에 IMPORT하기 전에 특정된 AccountUID의 데이터를 DELETE를 진행한다.
 
 ## 부가설명
 ### INI 파일 이름

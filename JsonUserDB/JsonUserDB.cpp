@@ -293,6 +293,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	int import_json = 0;
 	int delete_rows = 0;
 	int print_tables = 0;
+	int force_import = 0;
 	int verbose = 0;
 
 	// CONFIG SECTION
@@ -310,6 +311,7 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 		OPT_BOOLEAN(L'i', L"import", &import_json, L"Import JSON file into DB", NULL, 0, 0),
 		OPT_BOOLEAN(L'd', L"delete", &delete_rows, L"Delete rows(same accounUID exists) of DB", NULL, 0, 0),
 		OPT_BOOLEAN(L'p', L"print", &print_tables, L"Print all columns from tables where same accountUID exists ", NULL, 0, 0),
+		OPT_BOOLEAN(L'f', L"force", &force_import, L"Delete accounUID data and import JSON file into DB", NULL, 0, 0),
 		OPT_STRING(L's', L"source", &source, L"Source DB connection string or source JSON file name", NULL, 0, 0),
 		OPT_STRING(L't', L"target", &target, L"Target JSON file name or target DB connection string", NULL, 0, 0),
 		OPT_STRING(L'c', L"connect", &conn_section, L"Section name in INI file for connection to DB", NULL, 0, 0),
@@ -345,6 +347,10 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 			conn_string = std::wstring(target);
 		if (source != NULL)
 			json_file_name = std::wstring(source);
+	}
+	else{
+		if (force_import == 1)
+			LOG_AND_RETURN_VALUE(LOG_ERROR, L"Force option is supported when import mode", ERROR_BAD_ARG);
 	}
 	if (export_json == 1 || import_json == 1) {
 		if (json_file_name.empty()) {
@@ -385,6 +391,10 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 	}
 	else if (import_json == 1) {
 		SUCCEEDED_CHECK(readJsonFile(root, json_file_name), ERROR_READ_FILE, L"Reading JSON file");
+
+		if (force_import == 1) {
+			SUCCEEDED_CHECK(deleteAccountDataFromTables(hdbc, uid_exist_table_name_set, accountuid), ERROR_DELETE_TABLEROWS, L"Deleteing table rows");
+		}
 
 		SUCCEEDED_CHECK(importJsonIntoDB(root, hdbc, accountuid, uid_exist_table_name_set), ERROR_IMPORT_JSON, L"Importing Json into DB");
 	}
