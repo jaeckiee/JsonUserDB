@@ -77,7 +77,7 @@ Command syntax에 대한 짧은 설명을 제공합니다.
 
 `-f, -–force`
 
-IMPORT 모드일 경우 JSON을 DB에 IMPORT하기 전에 특정된 AccountUID의 데이터를 DELETE를 진행한다.
+IMPORT 모드일 경우 JSON을 DB에 IMPORT하기 전에 특정된 AccountUID의 데이터를 DELETE한다.
 
 ## 부가설명
 ### INI 파일 이름
