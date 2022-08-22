@@ -37,7 +37,7 @@ JsonUserDB –p –u AccountUID값 {-t ConnectionString | -c 섹션이름}
 
 `-i, --import`
 
-프로그램이 IMPORT 모드로 동작하게 특정합니다. IMPORT 모드는 source JSON 파일에서 target DB로 입력받은 특정 AccountUID 값으로 데이터를 IMPORT합니다. IMPORT 모드는 파라미터 옵션으로 –u, -s 옵션이 필수로 입력되어야 하며 –t와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 target이 됩니다.
+프로그램이 IMPORT 모드로 동작하게 특정합니다. IMPORT 모드는 source JSON 파일에서 target DB로 입력받은 특정 AccountUID 값으로 데이터를 IMPORT합니다. IMPORT 모드는 파라미터 옵션으로 –u, -s 옵션이 필수로 입력되어야 하며 –t와 –c 옵션 둘 중 하나가 필수로 입력되어야 합니다. –c 옵션을 입력받게 되면 해당 접속 DB가 target이 됩니다. -f 옵션을 선택적으로 입력받을 수 있습니다.
 
 `-d, --delete`
 
@@ -67,7 +67,7 @@ INI 파일에 있는 섹션이름을 특정합니다. 특정된 섹션에 있는
 AccountUID의 값을 특정합니다. 특정된 AccountUID의 데이터가 JSON을 통해DB에 IMPORT되거나 DB에 해당하는 AccountUID의 데이터들을 JSON으로 EXPORT하여 파일에 저장합니다.
 
 ### 그 외 옵션들
-`-v –verbose`
+`-v, –verbose`
 
 실행된 SQL문들이 출력됩니다. (로그 레벨 : LOG_INFO)
 
