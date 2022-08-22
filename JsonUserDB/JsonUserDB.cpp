@@ -349,8 +349,9 @@ int wmain(int argc, _In_reads_(argc) const WCHAR** argv) {
 			json_file_name = std::wstring(source);
 	}
 	else{
-		if (force_import == 1)
+		if (force_import == 1) {
 			LOG_AND_RETURN_VALUE(LOG_ERROR, L"Force option is supported when import mode", ERROR_BAD_ARG);
+		}
 	}
 	if (export_json == 1 || import_json == 1) {
 		if (json_file_name.empty()) {
