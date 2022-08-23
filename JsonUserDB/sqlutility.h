@@ -1,6 +1,6 @@
 #pragma once
-#include "json/json.h"
-#include "logutility.h"
+#include "ThirdParty/json/json.h"
+#include "LogUtility.h"
 
 // Macro to call ODBC functions and report an error on failure and Takes handle, handle type, and stmt
 #define TRYODBC(h, ht, x)   {   RETCODE rc = x;\

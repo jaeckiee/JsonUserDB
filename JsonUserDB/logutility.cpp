@@ -1,4 +1,4 @@
-#include "logutility.h"
+#include "LogUtility.h"
 
 void Log(int severityLv, std::wstring msg) {
 	if (severityLv > g_standard_log_severity_lv)

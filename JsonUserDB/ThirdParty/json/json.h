@@ -571,7 +571,7 @@ public:
 #include <memory>
 #include <string>
 #include <vector>
-#include "strutility.h"
+#include "../../StrUtility.h"
 
 // Disable warning C4251: <data member>: <type> needs to have dll-interface to
 // be used by...

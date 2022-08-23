@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <string>
 #include <vector>
-#include "strutility.h"
+#include "StrUtility.h"
 #include <sstream>
 std::string get_utf8(const std::wstring& wstr) {
 	if (wstr.empty()) return std::string();

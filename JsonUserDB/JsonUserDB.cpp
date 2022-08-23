@@ -15,22 +15,22 @@
 #include <fstream>
 #include "strutility.h"
 #include "sqlutility.h"
-#include "argparse.h"
-#include "json/json.h"
-#include "sqlbuilder.h"
+#include "ThirdParty/argparse/argparse.h"
+#include "ThirdParty/json/json.h"
+#include "ThirdParty/sqlbuilder.h"
 #include <cassert>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
-#include "logutility.h"
-#include "memoryutility.h"
+#include "LogUtility.h"
+#include "MemoryUtility.h"
 #include <new>
 
 #define FMT_HEADER_ONLY
-#include "fmt/core.h"
-#include "fmt/format.h"
-#include "fmt/xchar.h"
-#include "fmt/format-inl.h"
+#include "ThirdParty/fmt/core.h"
+#include "ThirdParty/fmt/format.h"
+#include "ThirdParty/fmt/xchar.h"
+#include "ThirdParty/fmt/format-inl.h"
 
 #define APP_NAME "JsonUserDB"
 

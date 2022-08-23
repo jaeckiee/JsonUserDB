@@ -21,61 +21,61 @@
     <ClCompile Include="JsonUserDB.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="strutility.cpp">
+    <ClCompile Include="LogUtility.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="sqlutility.cpp">
+    <ClCompile Include="MemoryUtility.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="argparse.c">
+    <ClCompile Include="SqlUtility.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="StrUtility.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\jsoncpp.cpp">
       <Filter>3rdPartyLibrary</Filter>
     </ClCompile>
-    <ClCompile Include="jsoncpp.cpp">
+    <ClCompile Include="ThirdParty\argparse\argparse.c">
       <Filter>3rdPartyLibrary</Filter>
-    </ClCompile>
-    <ClCompile Include="logutility.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="memoryutility.cpp">
-      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="strutility.h">
+    <ClInclude Include="LogUtility.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="sqlutility.h">
+    <ClInclude Include="SqlUtility.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="sqlbuilder.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="json\json.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="argparse.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="json\json-forwards.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="logutility.h">
+    <ClInclude Include="StrUtility.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="fmt\core.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="fmt\format.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="fmt\xchar.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="fmt\format-inl.h">
-      <Filter>3rdPartyLibrary</Filter>
-    </ClInclude>
-    <ClInclude Include="memoryutility.h">
+    <ClInclude Include="MemoryUtility.h">
       <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\sqlbuilder.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\json\json.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\json\json-forwards.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\fmt\core.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\fmt\format.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\fmt\format-inl.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\fmt\xchar.h">
+      <Filter>3rdPartyLibrary</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\argparse\argparse.h">
+      <Filter>3rdPartyLibrary</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -8,9 +8,9 @@
 #include <string>
 #include <wchar.h>
 #include <unordered_set>
-#include "sqlutility.h"
-#include "strutility.h"
-#include "logutility.h"
+#include "SqlUtility.h"
+#include "StrUtility.h"
+#include "LogUtility.h"
 
 bool sqlfExec(SQLHSTMT& hStmt, SQLHDBC hDbc, std::wstring wszInput) {
 	bool is_succeeded = false;

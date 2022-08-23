@@ -129,29 +129,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="argparse.c" />
-    <ClCompile Include="jsoncpp.cpp" />
     <ClCompile Include="JsonUserDB.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="logutility.cpp" />
-    <ClCompile Include="memoryutility.cpp" />
-    <ClCompile Include="sqlutility.cpp" />
-    <ClCompile Include="strutility.cpp" />
+    <ClCompile Include="LogUtility.cpp" />
+    <ClCompile Include="MemoryUtility.cpp" />
+    <ClCompile Include="SqlUtility.cpp" />
+    <ClCompile Include="StrUtility.cpp" />
+    <ClCompile Include="ThirdParty\argparse\argparse.c" />
+    <ClCompile Include="ThirdParty\jsoncpp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="argparse.h" />
-    <ClInclude Include="fmt\core.h" />
-    <ClInclude Include="fmt\format-inl.h" />
-    <ClInclude Include="fmt\format.h" />
-    <ClInclude Include="fmt\xchar.h" />
-    <ClInclude Include="json\json-forwards.h" />
-    <ClInclude Include="json\json.h" />
-    <ClInclude Include="logutility.h" />
-    <ClInclude Include="memoryutility.h" />
-    <ClInclude Include="sqlbuilder.h" />
-    <ClInclude Include="sqlutility.h" />
-    <ClInclude Include="strutility.h" />
+    <ClInclude Include="LogUtility.h" />
+    <ClInclude Include="MemoryUtility.h" />
+    <ClInclude Include="SqlUtility.h" />
+    <ClInclude Include="StrUtility.h" />
+    <ClInclude Include="ThirdParty\argparse\argparse.h" />
+    <ClInclude Include="ThirdParty\fmt\core.h" />
+    <ClInclude Include="ThirdParty\fmt\format-inl.h" />
+    <ClInclude Include="ThirdParty\fmt\format.h" />
+    <ClInclude Include="ThirdParty\fmt\xchar.h" />
+    <ClInclude Include="ThirdParty\json\json-forwards.h" />
+    <ClInclude Include="ThirdParty\json\json.h" />
+    <ClInclude Include="ThirdParty\sqlbuilder.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
