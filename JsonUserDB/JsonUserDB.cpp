@@ -48,18 +48,33 @@
 						}
 
 // return codes
-const int ERROR_FATAL = -1;
-const int SUCCESS = 0;
-const int ERROR_BAD_ARG = 1;
-const int ERROR_READ_FILE = 2;
-const int ERROR_WRITE_FILE = 3;
-const int ERROR_ALLOCATE_ENVHANDLE = 4;
-const int ERROR_CONNECT_DB = 5;
-const int ERROR_DISCONNECT_DB = 6;
-const int ERROR_IMPORT_JSON = 7;
-const int ERROR_EXPORT_JSON = 8;
-const int ERROR_DELETE_TABLEROWS = 9;
-const int ERROR_PRINT_TABLE = 10;
+enum RETURN_VALUE {
+	ERROR_FATAL = -1,
+	SUCCESS,
+	ERROR_BAD_ARG,
+	ERROR_READ_FILE,
+	ERROR_WRITE_FILE,
+	ERROR_ALLOCATE_ENVHANDLE,
+	ERROR_CONNECT_DB,
+	ERROR_DISCONNECT_DB,
+	ERROR_IMPORT_JSON,
+	ERROR_EXPORT_JSON,
+	ERROR_DELETE_TABLEROWS,
+	ERROR_PRINT_TABLE
+};
+
+//const int ERROR_FATAL = -1;
+//const int SUCCESS = 0;
+//const int ERROR_BAD_ARG = 1;
+//const int ERROR_READ_FILE = 2;
+//const int ERROR_WRITE_FILE = 3;
+//const int ERROR_ALLOCATE_ENVHANDLE = 4;
+//const int ERROR_CONNECT_DB = 5;
+//const int ERROR_DISCONNECT_DB = 6;
+//const int ERROR_IMPORT_JSON = 7;
+//const int ERROR_EXPORT_JSON = 8;
+//const int ERROR_DELETE_TABLEROWS = 9;
+//const int ERROR_PRINT_TABLE = 10;
 
 // ini FILE
 const WCHAR* DEFALUT_EMPTY_VAL = L"";
