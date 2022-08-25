@@ -136,6 +136,9 @@ def writeJsonFile(json_data, jsonFileName):
     with open(jsonFileName,'w') as file:
         file.write(json_data)
 
+def deleteAccountDataFromTable(cursor, tableName):
+    cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
+
 def printTable(cursor, tableName):
     cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
     column_name_list = [column[0] for column in cursor.description]
@@ -160,8 +163,8 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
         # import json into DB
         return
     elif g_mode == 'delete':
-        # delete data from table
-        return
+        for table_name in tableNameSet:
+            deleteAccountDataFromTable(cursor, table_name)
     elif g_mode == 'print':
         for table_name in tableNameSet:
             print(table_name)
@@ -176,6 +179,7 @@ def main():
     uid_exist_table_name_set = sqlFirstCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
     excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
+    cursor.commit()
     cursor.close()
     conn.close()
 
