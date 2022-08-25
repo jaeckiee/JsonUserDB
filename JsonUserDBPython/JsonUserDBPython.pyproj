@@ -12,7 +12,7 @@
     <Name>JsonUserDBPython</Name>
     <RootNamespace>JsonUserDBPython</RootNamespace>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>-i -u 10000113685 -s 10000113685.json -c LOCAL</CommandLineArguments>
+    <CommandLineArguments>-p -u 10000113685 -c LOCAL</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

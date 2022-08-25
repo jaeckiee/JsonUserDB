@@ -4,6 +4,8 @@ from py_compile import _get_default_invalidation_mode
 import click
 import logging
 import pyodbc 
+import json
+import pandas as pd
 
 global g_ini_file_name
 global g_config_section_name
@@ -54,7 +56,6 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
     g_account_uid = accountUID
     global g_verbose
     g_verbose = verbose
-    print(mode)
     if mode == None:
         loggingErrorAndExit('This mode is not supported')
     global g_mode
@@ -102,7 +103,20 @@ def sqlFirstCol(cursor, sql):
         row = cursor.fetchone()
     return single_col_set
 
-def excuteTaskDependingOnMode():
+def printTable(cursor, tableName):
+    cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
+    column_name_list = [column[0] for column in cursor.description]
+    pd.set_option('display.expand_frame_repr', False)
+    pd.option_context('display.max_rows', None, 'display.max_columns', None)
+    df = pd.DataFrame(columns = column_name_list)
+    row = cursor.fetchone() 
+    print(type(row))
+    while row: 
+        df.loc[len(df.index)] = list(row)
+        row = cursor.fetchone()
+    print(df)
+
+def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
         return
     elif g_mode == 'import':
@@ -110,7 +124,9 @@ def excuteTaskDependingOnMode():
     elif g_mode == 'delete':
         return
     elif g_mode == 'print':
-        return
+        for table_name in tableNameSet:
+            print(table_name)
+            printTable(cursor, table_name)
 
 def main():
     configFileParse()
@@ -119,7 +135,7 @@ def main():
     cursor = conn.cursor()
     uid_exist_table_name_set = sqlFirstCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
-    excuteTaskDependingOnMode()
+    excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
     conn.close()
 
 if __name__ == "__main__":
