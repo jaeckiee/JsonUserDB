@@ -14,6 +14,7 @@ global g_log_severity_level
 global g_account_field_name
 global g_exlusion_table_names
 global g_exlusion_table_name_set
+global g_json_file_name
 global g_mode
 global g_account_uid
 g_ini_file_name = 'JsonUserDBPython.ini'
@@ -48,8 +49,9 @@ def configFileParse():
 @click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
 @click.option("-v", "--verbose", 'verbose', is_flag=True, show_default=False, default=False, help="Provides additional details")
 def argParse(mode, forceImport, source, target, connSection, accountUID, verbose):
+    global g_json_file_name
     conn_string = ''
-    json_file_name = ''
+    g_json_file_name = ''
     if not accountUID:
         loggingErrorAndExit('Target accountUID is needed')
     global g_account_uid
@@ -64,17 +66,17 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
         if source:
             conn_string = source
         if target:
-            json_file_name = target
+            g_json_file_name = target
     if g_mode == 'import':
         if target:
             conn_string = target
         if source:
-            json_file_name = source
+            g_json_file_name = source
     else:
         if forceImport:
             loggingErrorAndExit('Force option is supported when import mode')
     if g_mode == 'export' or g_mode == 'import':
-        if not json_file_name:
+        if not g_json_file_name:
             loggingErrorAndExit('JSON file name is needed')
     if not conn_string and not connSection:
         loggingErrorAndExit('Connection string or connect section is needed')
@@ -92,7 +94,7 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
             conn_string = 'DSN={0};Trusted_connection={1};UID={2};PWD={3};Database={4};'.format(val_dsn, val_trusted_conneciton, val_uid, val_pwd, val_database)
         else:
             conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
-    return conn_string, json_file_name
+    return conn_string
 
 def sqlFirstCol(cursor, sql):
     single_col_set = set()
@@ -101,19 +103,6 @@ def sqlFirstCol(cursor, sql):
     for row in row_list:
         single_col_set.add(row[0])
     return single_col_set
-
-#def sqlMultiCol(cursor, tableName, sql):
-#    cursor.execute(sql)
-#    column_name_list = [column[0] for column in cursor.description]
-#    row_list = cursor.fetchall()
-#    result_json_dict = {tableName:[]}
-#    for row in row_list:
-#        result_row_dict = dict()
-#        for col_idx in range(0, len(row)):
-#            result_row_dict.update({column_name_list[col_idx]:row[col_idx]})
-#        result_json_dict[tableName].append(result_row_dict)
-#    result_json = json.JSONEncoder().encode(result_json_dict)
-#    return result_json
 
 def sqlMultiCol(cursor, tableName, sql):
     cursor.execute(sql)
@@ -129,12 +118,23 @@ def sqlMultiCol(cursor, tableName, sql):
     return result_json
 
 def exportJsonFromDB(cursor, tableNameSet):
-    result_json = json.dumps({g_account_field_name:g_account_uid})
-    ##################
-    result_json_str = json.loads(result_json)
-    result_json_str.update({'abc':'bac'})
-    result_json = json.dumps(result_json_str)
+    result_py_obj = {g_account_field_name:g_account_uid}
+    for table_name in tableNameSet:
+        auto_col_name_set = sqlFirstCol(cursor, "SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'".format(table_name))
+        table_json = sqlMultiCol(cursor, table_name, "SELECT * FROM {0} WHERE {1} = {2}".format(table_name, g_account_field_name, g_account_uid))
+        table_py_obj = json.loads(table_json)
+        for row_idx in range(0, len(table_py_obj[table_name])):
+            del table_py_obj[table_name][row_idx][g_account_field_name]
+            for auto_col_name in auto_col_name_set:
+                del table_py_obj[table_name][row_idx][auto_col_name]
+        if len(table_py_obj[table_name]) > 0:
+            result_py_obj.update(table_py_obj)
+    result_json = json.dumps(result_py_obj, default=str, indent = 4)
     return result_json
+
+def writeJsonFile(json_data, jsonFileName):
+    with open(jsonFileName,'w') as file:
+        json.dump(json_data, file)
 
 def printTable(cursor, tableName):
     cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
@@ -149,10 +149,9 @@ def printTable(cursor, tableName):
 
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
-        # export json from db
+        json_accountuid_data = exportJsonFromDB(cursor, tableNameSet)
 
-        # wirte json file
-        return
+        writeJsonFile(json_accountuid_data, g_json_file_name)
     elif g_mode == 'import':
         # read json file
 
@@ -171,13 +170,12 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
 def main():
     pd.set_option('display.expand_frame_repr', False, 'display.max_rows', None, 'display.max_columns', None)
     configFileParse()
-    conn_string, json_file_name = argParse(standalone_mode=False)
+    conn_string = argParse(standalone_mode=False)
     conn = pyodbc.connect(conn_string)
     cursor = conn.cursor()
     uid_exist_table_name_set = sqlFirstCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
-    #excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
-    test_json = sqlMultiCol(cursor, 'Account', "SELECT * FROM Account WHERE AccountUID = '10000113685';")
+    excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
     cursor.close()
     conn.close()
 
