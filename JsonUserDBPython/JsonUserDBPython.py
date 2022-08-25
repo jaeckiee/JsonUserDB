@@ -129,12 +129,12 @@ def exportJsonFromDB(cursor, tableNameSet):
                 del table_py_obj[table_name][row_idx][auto_col_name]
         if len(table_py_obj[table_name]) > 0:
             result_py_obj.update(table_py_obj)
-    result_json = json.dumps(result_py_obj, default=str, indent = 4)
+    result_json = json.dumps(result_py_obj, indent=4)
     return result_json
 
 def writeJsonFile(json_data, jsonFileName):
     with open(jsonFileName,'w') as file:
-        json.dump(json_data, file)
+        file.write(json_data)
 
 def printTable(cursor, tableName):
     cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
