@@ -1,11 +1,14 @@
 from asyncio.windows_events import NULL
 from configparser import ConfigParser
-from py_compile import _get_default_invalidation_mode
+from re import A
 import click
 import logging
 import pyodbc 
 import json
 import pandas as pd
+from pypika import Query, Table, Field
+import datetime
+import decimal
 
 global g_ini_file_name
 global g_config_section_name
@@ -17,8 +20,32 @@ global g_exlusion_table_name_set
 global g_json_file_name
 global g_mode
 global g_account_uid
+global g_force_import
 g_ini_file_name = 'JsonUserDBPython.ini'
 g_config_section_name = 'CONFIG'
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return str(obj)
+        if isinstance(obj, (bytes, bytearray)):
+            return str(obj)
+        if isinstance(obj, (decimal.Decimal)):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
+
+class CustomJSONDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, source):
+        for k, v in source.items():
+            if isinstance(v, str):
+                try:
+                    source[k] = datetime.datetime.strptime(str(v), '%a, %d %b %Y %H:%M:%S %Z')
+                except:
+                    pass
+        return source
 
 def loggingErrorAndExit(msg):
     logging.error(msg)
@@ -75,6 +102,8 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
     else:
         if forceImport:
             loggingErrorAndExit('Force option is supported when import mode')
+    global g_force_import
+    g_force_import = forceImport
     if g_mode == 'export' or g_mode == 'import':
         if not g_json_file_name:
             loggingErrorAndExit('JSON file name is needed')
@@ -114,7 +143,7 @@ def sqlMultiCol(cursor, tableName, sql):
         for col_idx in range(0, len(row)):
             result_row_py_obj.update({column_name_list[col_idx]:row[col_idx]})
         result_py_obj[tableName].append(result_row_py_obj)
-    result_json = json.dumps(result_py_obj, default=str)
+    result_json = json.dumps(result_py_obj, cls=CustomJSONEncoder)
     return result_json
 
 def exportJsonFromDB(cursor, tableNameSet):
@@ -136,8 +165,28 @@ def writeJsonFile(json_data, jsonFileName):
     with open(jsonFileName,'w') as file:
         file.write(json_data)
 
-def deleteAccountDataFromTable(cursor, tableName):
-    cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
+def readJsonFile(jsonFileName):
+    with open(jsonFileName,'r') as file:
+        json_py_obj = json.load(file)
+        return json_py_obj
+
+def deleteAccountDataFromTables(cursor, tableNameSet):
+    for table_name in tableNameSet:
+        cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
+
+def importJsonIntoDB(cursor, jsonPyObj):
+    for table_name, table_val in jsonPyObj.items():
+        if table_name == g_account_field_name:
+            continue
+        for row in table_val:
+            table = Table(table_name)
+            insert_query = Query.into(table).columns(g_account_field_name)
+            col_val_list = [g_account_uid]
+            for col_name, col_val in row.items():
+                insert_query = insert_query.columns(col_name)
+                col_val_list.append(col_val)
+            insert_query = insert_query.insert(tuple(col_val_list))
+            cursor.execute(str(insert_query))
 
 def printTable(cursor, tableName):
     cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
@@ -156,15 +205,14 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
 
         writeJsonFile(json_accountuid_data, g_json_file_name)
     elif g_mode == 'import':
-        # read json file
+        json_py_obj = readJsonFile(g_json_file_name)
 
-        # if force import mode
-
-        # import json into DB
-        return
+        if g_force_import:
+            deleteAccountDataFromTables(cursor, tableNameSet)
+        
+        importJsonIntoDB(cursor, json_py_obj)
     elif g_mode == 'delete':
-        for table_name in tableNameSet:
-            deleteAccountDataFromTable(cursor, table_name)
+        deleteAccountDataFromTables(cursor, table_name)
     elif g_mode == 'print':
         for table_name in tableNameSet:
             print(table_name)
