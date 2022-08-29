@@ -143,11 +143,10 @@ def connectToDB(connString):
         sqlstate = e.args
         loggingErrorAndExit(sqlstate)
 
-def disconnectDB(cursor):
+def disconnectDB():
     global g_conn
     logging.info('Start : Disconnecting DB')
     try:
-        cursor.close()
         g_conn.close()
         logging.info('Success : Disconnecting DB')
     except pyodbc.Error as e:
@@ -173,9 +172,12 @@ def exportJsonFromDB(cursor, tableNameSet):
 
 def writeJsonFile(json_data, jsonFileName):
     logging.info('Start : Writing JSON file')
-    with open(jsonFileName,'w') as file:
-        file.write(json_data)
-    logging.info('Success : Writing JSON file')
+    try:
+        with open(jsonFileName,'w') as file:
+            file.write(json_data)
+        logging.info('Success : Writing JSON file')
+    except OSError:
+        loggingErrorAndExit('Fail : Writing JSON file')
 
 def readJsonFile(jsonFileName):
     logging.info('Start : Reading JSON file')
@@ -184,8 +186,8 @@ def readJsonFile(jsonFileName):
             json_py_obj = json.load(file)
             logging.info('Success : Reading JSON file')
             return json_py_obj
-    except FileNotFoundError:
-        loggingErrorAndExit("File is not found.")
+    except OSError:
+        loggingErrorAndExit("Fail : Reading JSON file")
 
 def deleteAccountDataFromTables(cursor, tableNameSet):
     logging.info('Start : Deleteing table rows')
@@ -274,7 +276,8 @@ def main():
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
     excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
-    disconnectDB(cursor)
+    cursor.close()
+    disconnectDB()
 
 if __name__ == "__main__":
     main()
