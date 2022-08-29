@@ -10,6 +10,7 @@ from pypika import Query, Table, Field
 import datetime
 import decimal
 from dateutil import parser
+from prettytable import PrettyTable
 
 global g_ini_file_name
 global g_config_section_name
@@ -140,8 +141,7 @@ def connectToDB(connString):
         g_conn = pyodbc.connect(connString)
         logging.info('Success : Connecting DB')
     except pyodbc.Error as e:
-        sqlstate = e.args
-        loggingErrorAndExit(sqlstate)
+        loggingErrorAndExit(e.args)
 
 def disconnectDB():
     global g_conn
@@ -150,8 +150,7 @@ def disconnectDB():
         g_conn.close()
         logging.info('Success : Disconnecting DB')
     except pyodbc.Error as e:
-        sqlstate = e.args
-        loggingErrorAndExit(sqlstate)
+        loggingErrorAndExit(e.args)
 
 def exportJsonFromDB(cursor, tableNameSet):
     logging.info('Start : Exporting JSON from DB')
@@ -199,6 +198,7 @@ def deleteAccountDataFromTables(cursor, tableNameSet):
     except pyodbc.Error as e:
         cursor.rollback()
         loggingErrorAndExit(str(e))
+
 def importJsonIntoDB(cursor, jsonPyObj):
     logging.info('Start : Importing Json into DB')
     try:
@@ -233,19 +233,18 @@ def importJsonIntoDB(cursor, jsonPyObj):
         cursor.rollback()
         loggingErrorAndExit(str(e))
 
-
 def printTable(cursor, tableName):
     logging.info('Start : Printing tables')
     try:
         cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
         column_name_list = [column[0] for column in cursor.description]
-        df = pd.DataFrame(columns = column_name_list)
+        pretty_table = PrettyTable()
+        pretty_table.field_names = column_name_list
         row = cursor.fetchone() 
-        print(type(row))
         while row: 
-            df.loc[len(df.index)] = list(row)
+            pretty_table.add_row(list(row))
             row = cursor.fetchone()
-        print(df)
+        print(pretty_table)
         logging.info('Success : Printing tables')
     except pyodbc.Error as e:
         loggingErrorAndExit(str(e))
