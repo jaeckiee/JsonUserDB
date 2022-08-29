@@ -3,12 +3,13 @@ from configparser import ConfigParser
 from re import A
 import click
 import logging
-import pyodbc 
+import pyodbc
 import json
 import pandas as pd
 from pypika import Query, Table, Field
 import datetime
 import decimal
+from dateutil import parser
 
 global g_ini_file_name
 global g_config_section_name
@@ -33,19 +34,6 @@ class CustomJSONEncoder(json.JSONEncoder):
         if isinstance(obj, (decimal.Decimal)):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
-
-class CustomJSONDecoder(json.JSONDecoder):
-    def __init__(self, *args, **kwargs):
-        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
-
-    def object_hook(self, source):
-        for k, v in source.items():
-            if isinstance(v, str):
-                try:
-                    source[k] = datetime.datetime.strptime(str(v), '%a, %d %b %Y %H:%M:%S %Z')
-                except:
-                    pass
-        return source
 
 def loggingErrorAndExit(msg):
     logging.error(msg)
@@ -125,7 +113,7 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
             conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
     return conn_string
 
-def sqlFirstCol(cursor, sql):
+def sqlSingleCol(cursor, sql):
     single_col_set = set()
     cursor.execute(sql)
     row_list = cursor.fetchall()
@@ -147,9 +135,10 @@ def sqlMultiCol(cursor, tableName, sql):
     return result_json
 
 def exportJsonFromDB(cursor, tableNameSet):
+    logging.info('Start : Exporting JSON from DB')
     result_py_obj = {g_account_field_name:g_account_uid}
     for table_name in tableNameSet:
-        auto_col_name_set = sqlFirstCol(cursor, "SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'".format(table_name))
+        auto_col_name_set = sqlSingleCol(cursor, "SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'".format(table_name))
         table_json = sqlMultiCol(cursor, table_name, "SELECT * FROM {0} WHERE {1} = {2}".format(table_name, g_account_field_name, g_account_uid))
         table_py_obj = json.loads(table_json)
         for row_idx in range(0, len(table_py_obj[table_name])):
@@ -159,36 +148,72 @@ def exportJsonFromDB(cursor, tableNameSet):
         if len(table_py_obj[table_name]) > 0:
             result_py_obj.update(table_py_obj)
     result_json = json.dumps(result_py_obj, indent=4)
+    logging.info('End : Exporting JSON from DB')
     return result_json
 
 def writeJsonFile(json_data, jsonFileName):
+    logging.info('Start : Writing JSON file')
     with open(jsonFileName,'w') as file:
         file.write(json_data)
+    logging.info('End : Writing JSON file')
 
 def readJsonFile(jsonFileName):
-    with open(jsonFileName,'r') as file:
-        json_py_obj = json.load(file)
-        return json_py_obj
+    logging.info('Start : Reading JSON file')
+    try:
+        with open(jsonFileName,'r') as file:
+            json_py_obj = json.load(file)
+            logging.info('End : Reading JSON file')
+            return json_py_obj
+    except FileNotFoundError:
+        loggingErrorAndExit("File is not found.")
 
 def deleteAccountDataFromTables(cursor, tableNameSet):
-    for table_name in tableNameSet:
-        cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
-
+    logging.info('Start : Deleteing table rows')
+    try:
+        for table_name in tableNameSet:
+            cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
+        cursor.commit()
+        logging.info('End : Deleteing table rows')
+    except pyodbc.Error as e:
+        cursor.rollback()
+        loggingErrorAndExit(str(e))
 def importJsonIntoDB(cursor, jsonPyObj):
-    for table_name, table_val in jsonPyObj.items():
-        if table_name == g_account_field_name:
-            continue
-        for row in table_val:
-            table = Table(table_name)
-            insert_query = Query.into(table).columns(g_account_field_name)
-            col_val_list = [g_account_uid]
-            for col_name, col_val in row.items():
-                insert_query = insert_query.columns(col_name)
-                col_val_list.append(col_val)
-            insert_query = insert_query.insert(tuple(col_val_list))
-            cursor.execute(str(insert_query))
+    logging.info('Start : Importing Json into DB')
+    try:
+        for table_name, table_val in jsonPyObj.items():
+            if table_name == g_account_field_name:
+                continue
+            col_infos = sqlMultiCol(cursor, table_name, "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{}'".format(table_name))
+            col_infos_py_obj = json.loads(col_infos)
+            col_infos_dict = dict()
+            for col_info in col_infos_py_obj[table_name]:
+                col_infos_dict[col_info['COLUMN_NAME']] = col_info['DATA_TYPE']
+            for row in table_val:
+                table = Table(table_name)
+                insert_query = Query.into(table).columns(g_account_field_name)
+                col_val_list = [g_account_uid]
+                for col_name, col_val in row.items():
+                    insert_query = insert_query.columns(col_name)
+                    if col_infos_dict[col_name] == 'datetime':
+                        col_val_list.append(parser.parse(col_val))
+                    elif col_infos_dict[col_name] == 'bit':
+                        if col_val:
+                            col_val_list.append(1)
+                        else:
+                            col_val_list.append(0)
+                    else:
+                        col_val_list.append(col_val)
+                insert_query = insert_query.insert(tuple(col_val_list))
+                cursor.execute(str(insert_query))
+        cursor.commit()
+        logging.info('End : Importing Json into DB')
+    except pyodbc.Error as e:
+        cursor.rollback()
+        loggingErrorAndExit(str(e))
+
 
 def printTable(cursor, tableName):
+    logging.info('Start : Printing tables')
     cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
     column_name_list = [column[0] for column in cursor.description]
     df = pd.DataFrame(columns = column_name_list)
@@ -198,6 +223,7 @@ def printTable(cursor, tableName):
         df.loc[len(df.index)] = list(row)
         row = cursor.fetchone()
     print(df)
+    logging.info('End : Printing tables')
 
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
@@ -219,15 +245,15 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
             printTable(cursor, table_name)
 
 def main():
+    logging.basicConfig(level=logging.INFO)
     pd.set_option('display.expand_frame_repr', False, 'display.max_rows', None, 'display.max_columns', None)
     configFileParse()
     conn_string = argParse(standalone_mode=False)
     conn = pyodbc.connect(conn_string)
     cursor = conn.cursor()
-    uid_exist_table_name_set = sqlFirstCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
+    uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
     excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
-    cursor.commit()
     cursor.close()
     conn.close()
 
