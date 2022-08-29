@@ -132,6 +132,14 @@ def sqlMultiCol(cursor, tableName, sql):
     result_json = json.dumps(result_py_obj, cls=CustomJSONEncoder)
     return result_json
 
+def connectToDB(connString):
+    try:
+        conn = pyodbc.connect(connString)
+        return conn
+    except pyodbc.Error as e:
+        sqlstate = e.args
+        loggingErrorAndExit(sqlstate)
+
 def exportJsonFromDB(cursor, tableNameSet):
     logging.info('Start : Exporting JSON from DB')
     result_py_obj = {g_account_field_name:g_account_uid}
@@ -247,7 +255,7 @@ def main():
     pd.set_option('display.expand_frame_repr', False, 'display.max_rows', None, 'display.max_columns', None)
     configFileParse()
     conn_string = argParse(standalone_mode=False)
-    conn = pyodbc.connect(conn_string)
+    conn = connectToDB(conn_string)
     cursor = conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
