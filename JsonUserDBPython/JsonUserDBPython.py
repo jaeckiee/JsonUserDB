@@ -5,7 +5,6 @@ import click
 import logging
 import pyodbc
 import json
-import pandas as pd
 from pypika import Query, Table, Field
 import datetime
 import decimal
@@ -232,7 +231,7 @@ def importJsonIntoDB(cursor, jsonPyObj):
     except pyodbc.Error as e:
         cursor.rollback()
         loggingErrorAndExit(str(e))
-
+        
 def printTable(cursor, tableName):
     logging.info('Start : Printing tables')
     try:
@@ -248,7 +247,7 @@ def printTable(cursor, tableName):
         logging.info('Success : Printing tables')
     except pyodbc.Error as e:
         loggingErrorAndExit(str(e))
-
+    
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
         json_accountuid_data = exportJsonFromDB(cursor, tableNameSet)
@@ -270,7 +269,6 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    pd.set_option('display.expand_frame_repr', False, 'display.max_rows', None, 'display.max_columns', None)
     configFileParse()
     conn_string = argParse(standalone_mode=False)
     connectToDB(conn_string)
