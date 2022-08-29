@@ -236,16 +236,19 @@ def importJsonIntoDB(cursor, jsonPyObj):
 
 def printTable(cursor, tableName):
     logging.info('Start : Printing tables')
-    cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
-    column_name_list = [column[0] for column in cursor.description]
-    df = pd.DataFrame(columns = column_name_list)
-    row = cursor.fetchone() 
-    print(type(row))
-    while row: 
-        df.loc[len(df.index)] = list(row)
-        row = cursor.fetchone()
-    print(df)
-    logging.info('Success : Printing tables')
+    try:
+        cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
+        column_name_list = [column[0] for column in cursor.description]
+        df = pd.DataFrame(columns = column_name_list)
+        row = cursor.fetchone() 
+        print(type(row))
+        while row: 
+            df.loc[len(df.index)] = list(row)
+            row = cursor.fetchone()
+        print(df)
+        logging.info('Success : Printing tables')
+    except pyodbc.Error as e:
+        loggingErrorAndExit(str(e))
 
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
