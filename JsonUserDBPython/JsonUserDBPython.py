@@ -21,6 +21,7 @@ global g_json_file_name
 global g_mode
 global g_account_uid
 global g_force_import
+global g_conn
 g_ini_file_name = 'JsonUserDBPython.ini'
 g_config_section_name = 'CONFIG'
 
@@ -133,9 +134,22 @@ def sqlMultiCol(cursor, tableName, sql):
     return result_json
 
 def connectToDB(connString):
+    global g_conn
+    logging.info('Start : Connecting DB')
     try:
-        conn = pyodbc.connect(connString)
-        return conn
+        g_conn = pyodbc.connect(connString)
+        logging.info('Success : Connecting DB')
+    except pyodbc.Error as e:
+        sqlstate = e.args
+        loggingErrorAndExit(sqlstate)
+
+def disconnectDB(cursor):
+    global g_conn
+    logging.info('Start : Disconnecting DB')
+    try:
+        cursor.close()
+        g_conn.close()
+        logging.info('Success : Disconnecting DB')
     except pyodbc.Error as e:
         sqlstate = e.args
         loggingErrorAndExit(sqlstate)
@@ -154,21 +168,21 @@ def exportJsonFromDB(cursor, tableNameSet):
         if len(table_py_obj[table_name]) > 0:
             result_py_obj.update(table_py_obj)
     result_json = json.dumps(result_py_obj, indent=4)
-    logging.info('End : Exporting JSON from DB')
+    logging.info('Success : Exporting JSON from DB')
     return result_json
 
 def writeJsonFile(json_data, jsonFileName):
     logging.info('Start : Writing JSON file')
     with open(jsonFileName,'w') as file:
         file.write(json_data)
-    logging.info('End : Writing JSON file')
+    logging.info('Success : Writing JSON file')
 
 def readJsonFile(jsonFileName):
     logging.info('Start : Reading JSON file')
     try:
         with open(jsonFileName,'r') as file:
             json_py_obj = json.load(file)
-            logging.info('End : Reading JSON file')
+            logging.info('Success : Reading JSON file')
             return json_py_obj
     except FileNotFoundError:
         loggingErrorAndExit("File is not found.")
@@ -179,7 +193,7 @@ def deleteAccountDataFromTables(cursor, tableNameSet):
         for table_name in tableNameSet:
             cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
         cursor.commit()
-        logging.info('End : Deleteing table rows')
+        logging.info('Success : Deleteing table rows')
     except pyodbc.Error as e:
         cursor.rollback()
         loggingErrorAndExit(str(e))
@@ -212,7 +226,7 @@ def importJsonIntoDB(cursor, jsonPyObj):
                 insert_query = insert_query.insert(tuple(col_val_list))
                 cursor.execute(str(insert_query))
         cursor.commit()
-        logging.info('End : Importing Json into DB')
+        logging.info('Success : Importing Json into DB')
     except pyodbc.Error as e:
         cursor.rollback()
         loggingErrorAndExit(str(e))
@@ -229,7 +243,7 @@ def printTable(cursor, tableName):
         df.loc[len(df.index)] = list(row)
         row = cursor.fetchone()
     print(df)
-    logging.info('End : Printing tables')
+    logging.info('Success : Printing tables')
 
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
@@ -255,13 +269,12 @@ def main():
     pd.set_option('display.expand_frame_repr', False, 'display.max_rows', None, 'display.max_columns', None)
     configFileParse()
     conn_string = argParse(standalone_mode=False)
-    conn = connectToDB(conn_string)
-    cursor = conn.cursor()
+    connectToDB(conn_string)
+    cursor = g_conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
     excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
-    cursor.close()
-    conn.close()
+    disconnectDB(cursor)
 
 if __name__ == "__main__":
     main()
