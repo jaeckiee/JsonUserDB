@@ -5,11 +5,11 @@ import click
 import logging
 import pyodbc
 import json
-from pypika import Query, Table, Field
+from pypika import Table, Query, enums, functions
 import datetime
 import decimal
-from dateutil import parser
 from prettytable import PrettyTable
+import binascii
 
 global g_ini_file_name
 global g_config_section_name
@@ -27,10 +27,12 @@ g_config_section_name = 'CONFIG'
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (datetime.date, datetime.datetime)):
+        if isinstance(obj, (datetime.datetime)):
+            return obj.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        if isinstance(obj, (datetime.date)):
             return str(obj)
         if isinstance(obj, (bytes, bytearray)):
-            return str(obj)
+            return obj.decode(encoding="ISO-8859-1")
         if isinstance(obj, (decimal.Decimal)):
             return str(obj)
         return json.JSONEncoder.default(self, obj)
@@ -214,17 +216,27 @@ def importJsonIntoDB(cursor, jsonPyObj):
                 insert_query = Query.into(table).columns(g_account_field_name)
                 col_val_list = [g_account_uid]
                 for col_name, col_val in row.items():
+                    if col_name not in col_infos_dict.keys():
+                        loggingErrorAndExit("Fail : Importing Json into DB")
                     insert_query = insert_query.columns(col_name)
                     if col_infos_dict[col_name] == 'datetime':
-                        col_val_list.append(parser.parse(col_val))
+                        col_val_list.append(col_val)
                     elif col_infos_dict[col_name] == 'bit':
                         if col_val:
                             col_val_list.append(1)
                         else:
                             col_val_list.append(0)
+                    elif col_infos_dict[col_name] == 'binary':
+                        ##col_val.encode(encoding="ISO-8859-1")
+                        #col_val_list.append(functions.Convert(col_val.encode(encoding="ISO-8859-1"), enums.SqlTypes.BINARY).get_special_params_sql)
+                        #col_val_list.append(functions.Convert('0x' + col_val.encode(encoding="ISO-8859-1").hex(), enums.SqlTypes.BINARY).get_special_params_sql)
+                        col_val_list.append('0x' + col_val.encode(encoding="ISO-8859-1").hex())
+                    elif col_infos_dict[col_name] == 'varbinary':
+                        col_val_list.append('0x' + col_val.encode(encoding="ISO-8859-1").hex())
+                        #col_val_list.append(col_val.encode(encoding="ISO-8859-1").hex())
                     else:
                         col_val_list.append(col_val)
-                insert_query = insert_query.insert(tuple(col_val_list))
+                insert_query = insert_query.insert(col_val_list)
                 cursor.execute(str(insert_query))
         cursor.commit()
         logging.info('Success : Importing Json into DB')
@@ -261,7 +273,7 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
         
         importJsonIntoDB(cursor, json_py_obj)
     elif g_mode == 'delete':
-        deleteAccountDataFromTables(cursor, table_name)
+        deleteAccountDataFromTables(cursor, tableNameSet)
     elif g_mode == 'print':
         for table_name in tableNameSet:
             print(table_name)
