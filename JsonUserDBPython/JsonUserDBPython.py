@@ -9,7 +9,7 @@ from pypika import Table, Query, enums, functions
 import datetime
 import decimal
 from prettytable import PrettyTable
-import binascii
+import re
 
 global g_ini_file_name
 global g_config_section_name
@@ -227,17 +227,15 @@ def importJsonIntoDB(cursor, jsonPyObj):
                         else:
                             col_val_list.append(0)
                     elif col_infos_dict[col_name] == 'binary':
-                        ##col_val.encode(encoding="ISO-8859-1")
-                        #col_val_list.append(functions.Convert(col_val.encode(encoding="ISO-8859-1"), enums.SqlTypes.BINARY).get_special_params_sql)
-                        #col_val_list.append(functions.Convert('0x' + col_val.encode(encoding="ISO-8859-1").hex(), enums.SqlTypes.BINARY).get_special_params_sql)
-                        col_val_list.append('0x' + col_val.encode(encoding="ISO-8859-1").hex())
+                        col_val_list.append('0x{}'.format(col_val.encode(encoding="ISO-8859-1").hex()))
                     elif col_infos_dict[col_name] == 'varbinary':
-                        col_val_list.append('0x' + col_val.encode(encoding="ISO-8859-1").hex())
-                        #col_val_list.append(col_val.encode(encoding="ISO-8859-1").hex())
+                        col_val_list.append('0x{}'.format(col_val.encode(encoding="ISO-8859-1").hex()))
                     else:
                         col_val_list.append(col_val)
                 insert_query = insert_query.insert(col_val_list)
-                cursor.execute(str(insert_query))
+                executed_query = str(insert_query)
+                executed_query = re.sub("'(0x[0-9a-fA-F]+)'", r"\1", executed_query)
+                cursor.execute(executed_query)
         cursor.commit()
         logging.info('Success : Importing Json into DB')
     except pyodbc.Error as e:
