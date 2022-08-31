@@ -51,8 +51,10 @@ def configFileParse():
     g_exlusion_table_name_set = set(exlusion_table_name_list)
 
 def validateUID(ctx, param, value):
+    global g_account_uid
     if not value:
         loggingErrorAndExit('Target accountUID is needed')
+    g_account_uid = value
 
 @click.command(no_args_is_help=True)
 @click.help_option("-h", "--help")
@@ -66,14 +68,10 @@ def validateUID(ctx, param, value):
 @click.option("-c", "--connect", 'connSection', default='', help="Section name in INI file for connection to DB")
 @click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID", callback=validateUID)
 @click.option("-v", "--verbose", 'verbose', is_flag=True, show_default=False, default=False, help="Provides additional details")
-def argParse(mode, forceImport, source, target, connSection, accountUID, verbose):
+def argParse(mode, forceImport, source, target, connSection, verbose):
     global g_json_file_name
     conn_string = ''
     g_json_file_name = ''
-    #if not accountUID:
-    #    loggingErrorAndExit('Target accountUID is needed')
-    global g_account_uid
-    g_account_uid = accountUID
     global g_verbose
     g_verbose = verbose
     if mode == None:
