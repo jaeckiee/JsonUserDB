@@ -1,14 +1,12 @@
-from asyncio.windows_events import NULL
 from configparser import ConfigParser
-from re import A
+from pypika import Table, Query
+from prettytable import PrettyTable
 import click
 import logging
 import pyodbc
 import json
-from pypika import Table, Query, enums, functions
 import datetime
 import decimal
-from prettytable import PrettyTable
 import re
 
 global g_ini_file_name
@@ -42,7 +40,6 @@ def loggingErrorAndExit(msg):
     exit()
 
 def configFileParse():
-    global g_log_severity_level
     global g_account_field_name
     global g_exlusion_table_names
     global g_exlusion_table_name_set
@@ -53,7 +50,8 @@ def configFileParse():
     exlusion_table_name_list = g_exlusion_table_names.split(',')
     g_exlusion_table_name_set = set(exlusion_table_name_list)
 
-@click.command()
+@click.command(no_args_is_help=True)
+@click.help_option("-h", "--help")
 @click.option("-e", "--export", 'mode', flag_value='export', help="Export JSON file from DB")
 @click.option("-i", "--import", 'mode',  flag_value='import', help="Import JSON file into DB")
 @click.option("-d", "--delete", 'mode', flag_value='delete', help="Delete rows(same accounUID exists) of DB")
