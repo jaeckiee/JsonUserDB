@@ -50,6 +50,10 @@ def configFileParse():
     exlusion_table_name_list = g_exlusion_table_names.split(',')
     g_exlusion_table_name_set = set(exlusion_table_name_list)
 
+def validateUID(ctx, param, value):
+    if not value:
+        loggingErrorAndExit('Target accountUID is needed')
+
 @click.command(no_args_is_help=True)
 @click.help_option("-h", "--help")
 @click.option("-e", "--export", 'mode', flag_value='export', help="Export JSON file from DB")
@@ -60,14 +64,14 @@ def configFileParse():
 @click.option("-s", "--source", 'source', default='', help="Source DB connection string or source JSON file name")
 @click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
 @click.option("-c", "--connect", 'connSection', default='', help="Section name in INI file for connection to DB")
-@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
+@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID", callback=validateUID)
 @click.option("-v", "--verbose", 'verbose', is_flag=True, show_default=False, default=False, help="Provides additional details")
 def argParse(mode, forceImport, source, target, connSection, accountUID, verbose):
     global g_json_file_name
     conn_string = ''
     g_json_file_name = ''
-    if not accountUID:
-        loggingErrorAndExit('Target accountUID is needed')
+    #if not accountUID:
+    #    loggingErrorAndExit('Target accountUID is needed')
     global g_account_uid
     g_account_uid = accountUID
     global g_verbose
@@ -112,7 +116,7 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
             conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
     return conn_string
 
-def handleArgParse():
+def getConnString():
     try:
         return argParse(standalone_mode=False)
     except click.NoSuchOption as e:
@@ -285,7 +289,7 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
 def main():
     logging.basicConfig(level=logging.INFO)
     configFileParse()
-    conn_string = handleArgParse()
+    conn_string = getConnString()
     connectToDB(conn_string)
     cursor = g_conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
