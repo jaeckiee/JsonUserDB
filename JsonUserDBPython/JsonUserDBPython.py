@@ -112,6 +112,13 @@ def argParse(mode, forceImport, source, target, connSection, accountUID, verbose
             conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
     return conn_string
 
+def handleArgParse():
+    try:
+        return argParse(standalone_mode=False)
+    except click.NoSuchOption as e:
+        print(e)
+        exit()
+
 def sqlSingleCol(cursor, sql):
     single_col_set = set()
     cursor.execute(sql)
@@ -278,7 +285,7 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
 def main():
     logging.basicConfig(level=logging.INFO)
     configFileParse()
-    conn_string = argParse(standalone_mode=False)
+    conn_string = handleArgParse()
     connectToDB(conn_string)
     cursor = g_conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
