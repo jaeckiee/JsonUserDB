@@ -56,6 +56,7 @@ def validateUID(ctx, param, value):
         loggingErrorAndExit('Target accountUID is needed')
     g_account_uid = value
 
+
 @click.command(no_args_is_help=True)
 @click.help_option("-h", "--help")
 @click.option("-e", "--export", 'mode', flag_value='export', help="Export JSON file from DB")
@@ -68,7 +69,7 @@ def validateUID(ctx, param, value):
 @click.option("-c", "--connect", 'connSection', default='', help="Section name in INI file for connection to DB")
 @click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID", callback=validateUID)
 @click.option("-v", "--verbose", 'verbose', is_flag=True, show_default=False, default=False, help="Provides additional details")
-def argParse(mode, forceImport, source, target, connSection, verbose):
+def argParse(mode, accountUID, forceImport, source, target, connSection, verbose):
     global g_json_file_name
     conn_string = ''
     g_json_file_name = ''
@@ -137,8 +138,10 @@ def sqlMultiCol(cursor, tableName, sql):
     for row in row_list:
         result_row_py_obj = dict()
         for col_idx in range(0, len(row)):
-            result_row_py_obj.update({column_name_list[col_idx]:row[col_idx]})
-        result_py_obj[tableName].append(result_row_py_obj)
+            if row[col_idx] != None:
+                result_row_py_obj.update({column_name_list[col_idx]:row[col_idx]})
+        if len(result_row_py_obj) > 0:
+            result_py_obj[tableName].append(result_row_py_obj)
     result_json = json.dumps(result_py_obj, cls=CustomJSONEncoder)
     return result_json
 
