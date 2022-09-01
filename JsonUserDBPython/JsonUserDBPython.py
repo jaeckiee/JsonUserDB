@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+from distutils.command.config import config
 from pypika import Table, Query
 from prettytable import PrettyTable
 import click
@@ -9,19 +10,36 @@ import datetime
 import decimal
 import re
 
-global g_ini_file_name
-global g_config_section_name
-global g_verbose
+global INI_FILE_NAME
+global CONFIG_SECTION_NAME
+INI_FILE_NAME = 'JsonUserDBPython.ini'
+CONFIG_SECTION_NAME = 'CONFIG'
+
 global g_account_field_name
 global g_exlusion_table_names
 global g_exlusion_table_name_set
+
+global g_verbose
 global g_json_file_name
 global g_mode
 global g_account_uid
 global g_force_import
 global g_conn
-g_ini_file_name = 'JsonUserDBPython.ini'
-g_config_section_name = 'CONFIG'
+
+def getConf(getConfValFromINIFile):
+    def getConfFromINIFile(*args, **kwargs):
+        parser = ConfigParser()
+        parser.read(INI_FILE_NAME)
+        return getConfValFromINIFile(*args, **kwargs, parser=parser)
+    return getConfFromINIFile
+
+@getConf
+def getAccountFieldName(keyAccountUIDFieldName, parser=None):
+    return parser.get(CONFIG_SECTION_NAME, keyAccountUIDFieldName)
+
+@getConf
+def getExclusionTableName(keyExclusionTableNameList, parser=None):
+    return parser.get(CONFIG_SECTION_NAME, keyExclusionTableNameList)
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -39,14 +57,12 @@ def loggingErrorAndExit(msg):
     logging.error(msg)
     exit()
 
-def configFileParse():
+def globalVarConfig():
     global g_account_field_name
-    global g_exlusion_table_names
     global g_exlusion_table_name_set
-    parser = ConfigParser()
-    parser.read(g_ini_file_name)
-    g_account_field_name = parser.get(g_config_section_name, 'AccountUIDFieldName')
-    g_exlusion_table_names = parser.get(g_config_section_name, 'ExclusionTableNameList')
+    global g_exlusion_table_names
+    g_account_field_name = getAccountFieldName('AccountUIDFieldName')
+    g_exlusion_table_names = getExclusionTableName('ExclusionTableNameList')
     exlusion_table_name_list = g_exlusion_table_names.split(',')
     g_exlusion_table_name_set = set(exlusion_table_name_list)
 
@@ -55,7 +71,6 @@ def validateUID(ctx, param, value):
     if not value:
         loggingErrorAndExit('Target accountUID is needed')
     g_account_uid = value
-
 
 @click.command(no_args_is_help=True)
 @click.help_option("-h", "--help")
@@ -101,7 +116,7 @@ def argParse(mode, accountUID, forceImport, source, target, connSection, verbose
         loggingErrorAndExit('Connection string or connect section is needed')
     if not conn_string:
         parser = ConfigParser()
-        parser.read(g_ini_file_name)
+        parser.read(INI_FILE_NAME)
         val_server = parser.get(connSection, 'Server', fallback = '')
         val_driver = parser.get(connSection, 'Driver', fallback = '')
         val_dsn = parser.get(connSection, 'DSN', fallback = '')
@@ -257,7 +272,7 @@ def printTable(cursor, tableName):
     try:
         cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
         column_name_list = [column[0] for column in cursor.description]
-        pretty_table = PrettyTable()
+        pretty_table = PrettyTable() 
         pretty_table.field_names = column_name_list
         row = cursor.fetchone() 
         while row: 
@@ -267,7 +282,7 @@ def printTable(cursor, tableName):
         logging.info('Success : Printing tables')
     except pyodbc.Error as e:
         loggingErrorAndExit(str(e))
-    
+
 def excuteTaskDependingOnMode(cursor, tableNameSet):
     if g_mode == 'export':
         json_accountuid_data = exportJsonFromDB(cursor, tableNameSet)
@@ -286,10 +301,10 @@ def excuteTaskDependingOnMode(cursor, tableNameSet):
         for table_name in tableNameSet:
             print(table_name)
             printTable(cursor, table_name)
-
+             
 def main():
     logging.basicConfig(level=logging.INFO)
-    configFileParse()
+    globalVarConfig()
     conn_string = getConnString()
     connectToDB(conn_string)
     cursor = g_conn.cursor()
