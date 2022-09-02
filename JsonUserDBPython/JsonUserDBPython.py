@@ -64,16 +64,18 @@ def strToSet(inputStr, delimeter):
     word_list = inputStr.split(delimeter)
     return set(word_list)
 
+def handleNoneValue(inputVal, msg):
+    if inputVal is None:
+        loggingErrorAndExit(msg)
+
 def globalVarConfig():
     global g_account_field_name
     global g_exlusion_table_name_set
     global g_exlusion_table_names
     g_account_field_name = getAccountFieldName('AccountUIDFieldName')
-    if g_account_field_name is None:
-        loggingErrorAndExit("Failed : get account field name")
+    handleNoneValue(g_account_field_name, "Fail : get account Field name")
     g_exlusion_table_names = getExclusionTableName('ExclusionTableNameList')
-    if g_exlusion_table_names is None:
-        loggingErrorAndExit("Failed : get exclusion table names")
+    handleNoneValue(g_exlusion_table_names, "Fail : get exclustion table names")
     g_exlusion_table_name_set = strToSet(g_exlusion_table_names, ',')
 
 def validateUID(ctx, param, value):
