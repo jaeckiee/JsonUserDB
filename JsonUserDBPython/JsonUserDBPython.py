@@ -26,21 +26,6 @@ global g_account_uid
 global g_force_import
 global g_conn
 
-def getConf(getConfValFromINIFile):
-    def getConfFromINIFile(*args, **kwargs):
-        parser = ConfigParser()
-        parser.read(INI_FILE_NAME)
-        return getConfValFromINIFile(*args, **kwargs, parser=parser)
-    return getConfFromINIFile
-
-@getConf
-def getAccountFieldName(keyAccountUIDFieldName, parser=None):
-    return parser.get(CONFIG_SECTION_NAME, keyAccountUIDFieldName)
-
-@getConf
-def getExclusionTableName(keyExclusionTableNameList, parser=None):
-    return parser.get(CONFIG_SECTION_NAME, keyExclusionTableNameList)
-
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (datetime.datetime)):
@@ -57,14 +42,39 @@ def loggingErrorAndExit(msg):
     logging.error(msg)
     exit()
 
+def getConf(getConfValFromINIFile):
+    def getConfFromINIFile(*args, **kwargs):
+        parser = ConfigParser()
+        if not parser.read(INI_FILE_NAME):
+            return None
+        if not parser.has_section(CONFIG_SECTION_NAME):
+            return None
+        return getConfValFromINIFile(*args, **kwargs, parser=parser)
+    return getConfFromINIFile
+
+@getConf
+def getAccountFieldName(keyAccountUIDFieldName, parser=None):
+    return parser.get(CONFIG_SECTION_NAME, keyAccountUIDFieldName) if parser.has_option(CONFIG_SECTION_NAME, keyAccountUIDFieldName) else None
+
+@getConf
+def getExclusionTableName(keyExclusionTableNameList, parser=None):
+    return parser.get(CONFIG_SECTION_NAME, keyExclusionTableNameList) if parser.has_option(CONFIG_SECTION_NAME, keyExclusionTableNameList) else None
+
+def strToSet(inputStr, delimeter):
+    word_list = inputStr.split(delimeter)
+    return set(word_list)
+
 def globalVarConfig():
     global g_account_field_name
     global g_exlusion_table_name_set
     global g_exlusion_table_names
     g_account_field_name = getAccountFieldName('AccountUIDFieldName')
+    if g_account_field_name is None:
+        loggingErrorAndExit("Failed : get account field name")
     g_exlusion_table_names = getExclusionTableName('ExclusionTableNameList')
-    exlusion_table_name_list = g_exlusion_table_names.split(',')
-    g_exlusion_table_name_set = set(exlusion_table_name_list)
+    if g_exlusion_table_names is None:
+        loggingErrorAndExit("Failed : get exclusion table names")
+    g_exlusion_table_name_set = strToSet(g_exlusion_table_names, ',')
 
 def validateUID(ctx, param, value):
     global g_account_uid
