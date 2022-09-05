@@ -263,14 +263,6 @@ def getExportModeJsonFileName(source='', target=''):
 def getImportModeJsonFileName(source='', target=''):
     return source
 
-
-def getJsonFileNameOnCurrentMode(modeParameters):
-    mode = modeParameters.getMode()
-    if mode == 'export':
-        return getExportModeJsonFileName(modeParameters)
-    elif mode == 'import':
-        return getImportModeJsonFileName(modeParameters)
-
 #def getConnString():
 #    try:
 #        return argParse(standalone_mode=False)
@@ -318,12 +310,12 @@ def disconnectDB(connection):
     except pyodbc.Error as e:
         loggingErrorAndExit(e.args)
 
-def exportJsonFromDB(cursor, tableNameSet):
+def exportJsonFromDB(cursor, tableNameSet, accountUID):
     logging.info('Start : Exporting JSON from DB')
-    result_py_obj = {g_account_field_name:g_account_uid}
+    result_py_obj = {g_account_field_name:accountUID}
     for table_name in tableNameSet:
         auto_col_name_set = sqlSingleCol(cursor, "SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1 AND TABLE_NAME = '{}'".format(table_name))
-        table_json = sqlMultiCol(cursor, table_name, "SELECT * FROM {0} WHERE {1} = {2}".format(table_name, g_account_field_name, g_account_uid))
+        table_json = sqlMultiCol(cursor, table_name, "SELECT * FROM {0} WHERE {1} = {2}".format(table_name, g_account_field_name, accountUID))
         table_py_obj = json.loads(table_json)
         for row_idx in range(0, len(table_py_obj[table_name])):
             del table_py_obj[table_name][row_idx][g_account_field_name]
@@ -354,18 +346,18 @@ def readJsonFile(jsonFileName):
     except OSError:
         loggingErrorAndExit("Fail : Reading JSON file")
 
-def deleteAccountDataFromTables(cursor, tableNameSet):
+def deleteAccountDataFromTables(cursor, tableNameSet, accountUID):
     logging.info('Start : Deleteing table rows')
     try:
         for table_name in tableNameSet:
-            cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, g_account_uid, table_name, g_account_field_name, g_account_uid))
+            cursor.execute("IF EXISTS(SELECT * FROM {0} WHERE {1} = {2}) BEGIN DELETE FROM {3} WHERE {4} = {5} END".format(table_name, g_account_field_name, accountUID, table_name, g_account_field_name, accountUID))
         cursor.commit()
         logging.info('Success : Deleteing table rows')
     except pyodbc.Error as e:
         cursor.rollback()
         loggingErrorAndExit(str(e))
 
-def importJsonIntoDB(cursor, jsonPyObj):
+def importJsonIntoDB(cursor, jsonPyObj, accountUID):
     logging.info('Start : Importing Json into DB')
     try:
         for table_name, table_val in jsonPyObj.items():
@@ -379,7 +371,7 @@ def importJsonIntoDB(cursor, jsonPyObj):
             for row in table_val:
                 table = Table(table_name)
                 insert_query = Query.into(table).columns(g_account_field_name)
-                col_val_list = [g_account_uid]
+                col_val_list = [accountUID]
                 for col_name, col_val in row.items():
                     if col_name not in col_infos_dict.keys():
                         loggingErrorAndExit("Fail : Importing Json into DB")
@@ -407,10 +399,10 @@ def importJsonIntoDB(cursor, jsonPyObj):
         cursor.rollback()
         loggingErrorAndExit(str(e))
         
-def printTable(cursor, tableName):
+def printTable(cursor, tableName, accountUID):
     logging.info('Start : Printing tables')
     try:
-        cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, g_account_uid))
+        cursor.execute("SELECT * FROM {0} WHERE {1} = '{2}';".format(tableName, g_account_field_name, accountUID))
         column_name_list = [column[0] for column in cursor.description]
         pretty_table = PrettyTable() 
         pretty_table.field_names = column_name_list
@@ -423,24 +415,30 @@ def printTable(cursor, tableName):
     except pyodbc.Error as e:
         loggingErrorAndExit(str(e))
 
-def excuteTaskDependingOnMode(cursor, tableNameSet):
-    if g_mode == 'export':
-        json_accountuid_data = exportJsonFromDB(cursor, tableNameSet)
+def excuteTaskOnCurrentMode(cursor, tableNameSet, modeParameters):
+    mode = modeParameters.getMode()
+    account_uid = modeParameters.getAccountUID()
+    if mode == 'export':
+        json_file_name = getExportModeJsonFileName(modeParameters)
 
-        writeJsonFile(json_accountuid_data, g_json_file_name)
-    elif g_mode == 'import':
-        json_py_obj = readJsonFile(g_json_file_name)
+        json_accountuid_data = exportJsonFromDB(cursor, tableNameSet, account_uid)
 
-        if g_force_import:
-            deleteAccountDataFromTables(cursor, tableNameSet)
+        writeJsonFile(json_accountuid_data, json_file_name)
+    elif mode == 'import':
+        json_file_name = getImportModeJsonFileName(modeParameters)
+
+        json_py_obj = readJsonFile(json_file_name)
+
+        if modeParameters.getIsForceImport():
+            deleteAccountDataFromTables(cursor, tableNameSet, account_uid)
         
-        importJsonIntoDB(cursor, json_py_obj)
-    elif g_mode == 'delete':
-        deleteAccountDataFromTables(cursor, tableNameSet)
-    elif g_mode == 'print':
+        importJsonIntoDB(cursor, json_py_obj, account_uid)
+    elif mode == 'delete':
+        deleteAccountDataFromTables(cursor, tableNameSet, account_uid)
+    elif mode == 'print':
         for table_name in tableNameSet:
             print(table_name)
-            printTable(cursor, table_name)
+            printTable(cursor, table_name, account_uid)
              
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -448,12 +446,11 @@ def main():
     mode_parameters = ModeParameters()
     setModeParam(obj=mode_parameters, standalone_mode=False)
     conn_string = getConnectionStrOnCurrentMode(mode_parameters)
-    json_file_name = getJsonFileNameOnCurrentMode(mode_parameters)
     conn = getConnectionToDB(conn_string)
     cursor = conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
-    #excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
+    excuteTaskOnCurrentMode(cursor, uid_exist_table_name_set, mode_parameters)
     cursor.close()
     disconnectDB(conn)
 
