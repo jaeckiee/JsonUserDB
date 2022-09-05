@@ -189,8 +189,9 @@ def getConnectionStrFromINIFile(connectSectionName):
     val_dsn = parser.get(connectSectionName, 'DSN', fallback = '')
     val_trusted_conneciton = parser.get(connectSectionName, 'Trusted_connection', fallback = 'No')
     val_uid = parser.get(connectSectionName, 'UID', fallback = '')
-    val_pwd = parser.get(connectSectionName, 'PWD', fallback = '')
     val_database = parser.get(connectSectionName, 'Database', fallback = '')
+    if val_trusted_conneciton == 'No':
+        val_pwd = click.prompt('Please enter password', hide_input=True, type=str)
     if val_dsn:
         conn_string = 'DSN={0};Trusted_connection={1};UID={2};PWD={3};Database={4};'.format(val_dsn, val_trusted_conneciton, val_uid, val_pwd, val_database)
     else:
