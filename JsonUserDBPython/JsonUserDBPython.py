@@ -124,6 +124,15 @@ def globalVarConfig():
     handleNoneValue(g_exlusion_table_names, "Fail : get exclustion table names")
     g_exlusion_table_name_set = strToSet(g_exlusion_table_names, ',')
 
+def getModeParamFromCli():
+    try:
+        mode_parameters = ModeParameters()
+        setModeParam(obj=mode_parameters, standalone_mode=False)
+        return mode_parameters
+    except click.ClickException as e:
+        print(e)
+        exit()
+
 @click.group(no_args_is_help=True)
 @click.pass_context
 @click.help_option("-h", "--help")
@@ -184,6 +193,7 @@ def setPrintMode(ctx, accountUID, target, connectSectionName):
 def getConnectionStrFromINIFile(connectSectionName):
     parser = ConfigParser()
     parser.read(INI_FILE_NAME)
+    val_pwd = ''
     val_server = parser.get(connectSectionName, 'Server', fallback = '')
     val_driver = parser.get(connectSectionName, 'Driver', fallback = '')
     val_dsn = parser.get(connectSectionName, 'DSN', fallback = '')
@@ -263,13 +273,6 @@ def getExportModeJsonFileName(source='', target=''):
 @getJsonFileName
 def getImportModeJsonFileName(source='', target=''):
     return source
-
-#def getConnString():
-#    try:
-#        return argParse(standalone_mode=False)
-#    except click.NoSuchOption as e:
-#        print(e)
-#        exit()
 
 def sqlSingleCol(cursor, sql):
     single_col_set = set()
@@ -444,8 +447,7 @@ def excuteTaskOnCurrentMode(cursor, tableNameSet, modeParameters):
 def main():
     logging.basicConfig(level=logging.INFO)
     globalVarConfig()
-    mode_parameters = ModeParameters()
-    setModeParam(obj=mode_parameters, standalone_mode=False)
+    mode_parameters = getModeParamFromCli()
     conn_string = getConnectionStrOnCurrentMode(mode_parameters)
     conn = getConnectionToDB(conn_string)
     cursor = conn.cursor()
