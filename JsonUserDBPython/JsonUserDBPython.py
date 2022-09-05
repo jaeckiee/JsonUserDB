@@ -1,6 +1,4 @@
 from configparser import ConfigParser
-from distutils.command.config import config
-from py_compile import _get_default_invalidation_mode
 from pypika import Table, Query
 from prettytable import PrettyTable
 import click
@@ -238,6 +236,17 @@ def getPrintModeConnectionStr(source='', target='', connectSectionName=''):
     return conn_str
 
 
+def getConnectionStrOnCurrentMode(modeParameters):
+    mode = modeParameters.getMode()
+    if mode == 'export':
+        return getExportModeConnectionStr(modeParameters)
+    elif mode == 'import':
+        return getImportModeConnectionStr(modeParameters)
+    elif mode == 'delete':
+        return getDeleteModeConnectionStr(modeParameters)
+    elif mode == 'print':
+        return getPrintModeConnectionStr(modeParameters)
+
 
 def getJsonFileName(getModeJsonFileName):
     def getInnerJsonFileName(modeParameters):
@@ -255,94 +264,19 @@ def getImportModeJsonFileName(source='', target=''):
     return source
 
 
-#def getConnectionStr(ModeParameters):
-#    global g_json_file_name
-#    conn_string = ''
-#    g_json_file_name = ''
-#        if forceImport:
-#            loggingErrorAndExit('Force option is supported when import mode')
-#    global g_force_import
-#    g_force_import = forceImport
-#    if g_mode == 'export' or g_mode == 'import':
-#        if not g_json_file_name:
-#            loggingErrorAndExit('JSON file name is needed')
-#    if not conn_string and not connSection:
-#        loggingErrorAndExit('Connection string or connect section is needed')
-#    if not conn_string:
-#        parser = ConfigParser()
-#        parser.read(INI_FILE_NAME)
-#        val_server = parser.get(connSection, 'Server', fallback = '')
-#        val_driver = parser.get(connSection, 'Driver', fallback = '')
-#        val_dsn = parser.get(connSection, 'DSN', fallback = '')
-#        val_trusted_conneciton = parser.get(connSection, 'Trusted_connection', fallback = 'No')
-#        val_uid = parser.get(connSection, 'UID', fallback = '')
-#        val_pwd = parser.get(connSection, 'PWD', fallback = '')
-#        val_database = parser.get(connSection, 'Database', fallback = '')
-#        if val_dsn:
-#            conn_string = 'DSN={0};Trusted_connection={1};UID={2};PWD={3};Database={4};'.format(val_dsn, val_trusted_conneciton, val_uid, val_pwd, val_database)
-#        else:
-#            conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
-#    return conn_string
+def getJsonFileNameOnCurrentMode(modeParameters):
+    mode = modeParameters.getMode()
+    if mode == 'export':
+        return getExportModeJsonFileName(modeParameters)
+    elif mode == 'import':
+        return getImportModeJsonFileName(modeParameters)
 
-#@click.help_option("-h", "--help")
-#@click.option("-f", "--force", 'forceImport',  is_flag=True, show_default=False, default=False, help="Delete accounUID data and import JSON file into DB")
-#@click.option("-s", "--source", 'source', default='', help="Source DB connection string or source JSON file name")
-#@click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
-#@click.option("-c", "--connect", 'connSection', default='', help="Section name in INI file for connection to DB")
-#@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID", callback=validateUID)
-#@click.option("-v", "--verbose", 'verbose', is_flag=True, show_default=False, default=False, help="Provides additional details")
-#def argParse(accountUID, forceImport, source, target, connSection, verbose):
-#    global g_json_file_name
-#    global g_mode
-#    conn_string = ''
-#    g_json_file_name = ''
-#    global g_verbose
-#    g_verbose = verbose
-#    if g_mode == None:
-#        loggingErrorAndExit('This mode is not supported')
-#    if g_mode == 'export':
-#        if source:
-#            conn_string = source
-#        if target:
-#            g_json_file_name = target
-#    if g_mode == 'import':
-#        if target:
-#            conn_string = target
-#        if source:
-#            g_json_file_name = source
-#    else:
-#        if forceImport:
-#            loggingErrorAndExit('Force option is supported when import mode')
-#    global g_force_import
-#    g_force_import = forceImport
-#    if g_mode == 'export' or g_mode == 'import':
-#        if not g_json_file_name:
-#            loggingErrorAndExit('JSON file name is needed')
-#    if not conn_string and not connSection:
-#        loggingErrorAndExit('Connection string or connect section is needed')
-#    if not conn_string:
-#        parser = ConfigParser()
-#        parser.read(INI_FILE_NAME)
-#        val_server = parser.get(connSection, 'Server', fallback = '')
-#        val_driver = parser.get(connSection, 'Driver', fallback = '')
-#        val_dsn = parser.get(connSection, 'DSN', fallback = '')
-#        val_trusted_conneciton = parser.get(connSection, 'Trusted_connection', fallback = 'No')
-#        val_uid = parser.get(connSection, 'UID', fallback = '')
-#        val_pwd = parser.get(connSection, 'PWD', fallback = '')
-#        val_database = parser.get(connSection, 'Database', fallback = '')
-#        if val_dsn:
-#            conn_string = 'DSN={0};Trusted_connection={1};UID={2};PWD={3};Database={4};'.format(val_dsn, val_trusted_conneciton, val_uid, val_pwd, val_database)
-#        else:
-#            conn_string = 'Server={0};Driver={1};Trusted_connection={2};UID={3};PWD={4};Database={5};'.format(val_server, val_driver, val_trusted_conneciton, val_uid, val_pwd, val_database)
-#    return conn_string
-
-
-def getConnString():
-    try:
-        return argParse(standalone_mode=False)
-    except click.NoSuchOption as e:
-        print(e)
-        exit()
+#def getConnString():
+#    try:
+#        return argParse(standalone_mode=False)
+#    except click.NoSuchOption as e:
+#        print(e)
+#        exit()
 
 def sqlSingleCol(cursor, sql):
     single_col_set = set()
@@ -367,20 +301,19 @@ def sqlMultiCol(cursor, tableName, sql):
     result_json = json.dumps(result_py_obj, cls=CustomJSONEncoder)
     return result_json
 
-def connectToDB(connString):
-    global g_conn
+def getConnectionToDB(connString):
     logging.info('Start : Connecting DB')
     try:
-        g_conn = pyodbc.connect(connString)
+        connection = pyodbc.connect(connString)
         logging.info('Success : Connecting DB')
+        return connection
     except pyodbc.Error as e:
         loggingErrorAndExit(e.args)
 
-def disconnectDB():
-    global g_conn
+def disconnectDB(connection):
     logging.info('Start : Disconnecting DB')
     try:
-        g_conn.close()
+        connection.close()
         logging.info('Success : Disconnecting DB')
     except pyodbc.Error as e:
         loggingErrorAndExit(e.args)
@@ -514,16 +447,15 @@ def main():
     globalVarConfig()
     mode_parameters = ModeParameters()
     setModeParam(obj=mode_parameters, standalone_mode=False)
-
-
-    conn_string = getPrintModeConnectionStr(mode_parameters)
-    connectToDB(conn_string)
-    cursor = g_conn.cursor()
+    conn_string = getConnectionStrOnCurrentMode(mode_parameters)
+    json_file_name = getJsonFileNameOnCurrentMode(mode_parameters)
+    conn = getConnectionToDB(conn_string)
+    cursor = conn.cursor()
     uid_exist_table_name_set = sqlSingleCol(cursor, "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME = '{}' INTERSECT SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'".format(g_account_field_name))
     uid_exist_table_name_set = uid_exist_table_name_set.difference(g_exlusion_table_name_set)
-    excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
+    #excuteTaskDependingOnMode(cursor, uid_exist_table_name_set)
     cursor.close()
-    disconnectDB()
+    disconnectDB(conn)
 
 if __name__ == "__main__":
     main()
