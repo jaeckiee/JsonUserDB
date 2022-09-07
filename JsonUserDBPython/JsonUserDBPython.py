@@ -86,7 +86,7 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 def loggingErrorAndExit(msg):
     logging.error(msg)
-    exit()
+    exit(-1)
 
 def getConf(getConfValFromINIFile):
     def getConfFromINIFile(keyName):
@@ -131,19 +131,18 @@ def getModeParamFromCli():
         return mode_parameters
     except click.ClickException as e:
         print(e)
-        exit()
+        exit(-1)
 
 @click.group(no_args_is_help=True)
-@click.pass_context
 @click.help_option("-h", "--help")
-def setModeParam(ctx):
+def setModeParam():
     pass
 
 @setModeParam.command('export')
 @click.pass_context
-@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
+@click.option("-u", "--uid", 'accountUID', required = True, default='', help="Target accountUID")
 @click.option("-s", "--source", 'source', default='', help="Source DB connection string or source JSON file name")
-@click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
+@click.option("-t", "--target", 'target', required = True, default='', help="Target JSON file name or target DB connection string")
 @click.option("-c", "--connect", 'connectSectionName', default='', help="Section name in INI file for connection to DB")
 def setExportMode(ctx, accountUID, source, target, connectSectionName):
     ctx.obj.setMode('export')
@@ -154,11 +153,11 @@ def setExportMode(ctx, accountUID, source, target, connectSectionName):
 
 @setModeParam.command('import')
 @click.pass_context
-@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
-@click.option("-s", "--source", 'source', default='', help="Source DB connection string or source JSON file name")
-@click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
+@click.option("-u", "--uid", 'accountUID', required = True, default='', help="Target accountUID")
+@click.option("-s", "--source", 'source', required = True, default='', help="Source DB connection string or source JSON file name")
+@click.option("-t", "--target", 'target', default='', help="Target JSON file name or target DB connection string")
 @click.option("-c", "--connect", 'connectSectionName', default='', help="Section name in INI file for connection to DB")
-@click.option("-f", "--force", 'isForceImport',  is_flag=True, show_default=False, default=False, help="Delete accounUID data and import JSON file into DB")
+@click.option("-f", "--force", 'isForceImport', is_flag=True, show_default=False, default=False, help="Delete accounUID data and import JSON file into DB")
 def setImportMode(ctx, accountUID, source, target, connectSectionName, isForceImport):
     ctx.obj.setMode('import')
     ctx.obj.setAccountUID(accountUID)
@@ -169,7 +168,7 @@ def setImportMode(ctx, accountUID, source, target, connectSectionName, isForceIm
 
 @setModeParam.command('delete')
 @click.pass_context
-@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
+@click.option("-u", "--uid", 'accountUID', required = True, default='', help="Target accountUID")
 @click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
 @click.option("-c", "--connect", 'connectSectionName', default='', help="Section name in INI file for connection to DB")
 def setDeleteMode(ctx, accountUID, target, connectSectionName):
@@ -180,7 +179,7 @@ def setDeleteMode(ctx, accountUID, target, connectSectionName):
 
 @setModeParam.command('print')
 @click.pass_context
-@click.option("-u", "--uid", 'accountUID',  default='', help="Target accountUID")
+@click.option("-u", "--uid", 'accountUID', required = True, default='', help="Target accountUID")
 @click.option("-t", "--target", 'target',  default='', help="Target JSON file name or target DB connection string")
 @click.option("-c", "--connect", 'connectSectionName', default='', help="Section name in INI file for connection to DB")
 def setPrintMode(ctx, accountUID, target, connectSectionName):
